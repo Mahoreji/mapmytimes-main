@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" width="1600" height="900">
+  <defs>
+    <linearGradient id="p" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a0000"/>
+      <stop offset="50%" stop-color="#3a0608"/>
+      <stop offset="100%" stop-color="#0A0A0A"/>
+    </linearGradient>
+    <pattern id="n" width="100" height="100" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+      <rect width="100" height="100" fill="transparent"/>
+      <line x1="0" y1="0" x2="0" y2="100" stroke="#E31E24" stroke-width="1.5" opacity="0.16"/>
+    </pattern>
+    <radialGradient id="h" cx="30%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#E31E24" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.9"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#p)"/>
+  <rect width="1600" height="900" fill="url(#n)"/>
+  <rect width="1600" height="900" fill="url(#h)"/>
+  <g transform="translate(120 450)" opacity="0.85">
+    <text x="0" y="0" font-family="Arial Black, sans-serif" font-size="150" font-weight="900" fill="#ffffff" letter-spacing="-6">MAP MY</text>
+    <text x="0" y="155" font-family="Arial Black, sans-serif" font-size="180" font-weight="900" fill="#E31E24" letter-spacing="-6">TIMES</text>
+    <rect x="0" y="200" width="900" height="10" fill="#ffffff"/>
+    <text x="0" y="280" font-family="Arial Black, sans-serif" font-size="44" fill="#ffffff" letter-spacing="12" opacity="0.95">JOURNALISM OF INTEGRITY</text>
+  </g>
+  <rect x="60" y="60" width="1480" height="780" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.25" stroke-dasharray="20 12"/>
+</svg>
