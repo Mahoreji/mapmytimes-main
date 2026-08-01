@@ -23,11 +23,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function JobDetailPage({
-  params,
+export default async function JobDetailPage({
+  params: paramsPromise,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const params = await paramsPromise;
   const router = useRouter();
   const auth = useAuth();
   const [job, setJob] = useState<JobPostingResponse | null>(null);

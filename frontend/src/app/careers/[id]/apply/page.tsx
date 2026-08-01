@@ -30,11 +30,12 @@ const ACCEPT_MIME = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 
-export default function ApplyToJobPage({
-  params,
+export default async function ApplyToJobPage({
+  params: paramsPromise,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const params = await paramsPromise;
   const router = useRouter();
   const auth = useAuth();
 

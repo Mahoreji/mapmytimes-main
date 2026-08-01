@@ -8,18 +8,20 @@ export const fetchCache = "force-no-store";
 export const dynamicParams = true;
 export const revalidate = 0;
 
+type OAuthSearchParams = {
+  provider?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  picture?: string;
+  providerId?: string;
+  success?: string;
+  error?: string;
+  error_description?: string;
+};
+
 type OAuthRedirectPageProps = {
-  searchParams: {
-    provider?: string;
-    email?: string;
-    firstName?: string;
-    lastName?: string;
-    picture?: string;
-    providerId?: string;
-    success?: string;
-    error?: string;
-    error_description?: string;
-  };
+  searchParams: Promise<OAuthSearchParams>;
 };
 
 const providerLabels: Record<string, string> = {
@@ -62,7 +64,8 @@ function ProviderIcon({ provider }: { provider: string }) {
   return <div className="h-6 w-6 rounded-full bg-ink-950/10" />;
 }
 
-export default function OAuth2RedirectPage({ searchParams: sp }: OAuthRedirectPageProps) {
+export default async function OAuth2RedirectPage({ searchParams: spPromise }: OAuthRedirectPageProps) {
+  const sp = await spPromise;
   const provider = (sp.provider || "").toLowerCase() || "unknown";
   const email = sp.email ?? "";
   const firstName = sp.firstName ?? "";

@@ -7,12 +7,13 @@ import { SITE } from "@/lib/utils";
 import { ytThumbnails, extractShortMeta } from "@/lib/youtube";
 
 interface ShortDeepLinkProps {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 export async function generateMetadata({
-  params,
+  params: paramsPromise,
 }: ShortDeepLinkProps): Promise<Metadata> {
+  const params = await paramsPromise;
   const id = params.id;
   let title = `Short · ${SITE.name}`;
   let description = `Watch this Short on ${SITE.name}.`;
@@ -44,7 +45,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function ShortDeepLinkPage({ params }: ShortDeepLinkProps) {
+export default async function ShortDeepLinkPage({ params: paramsPromise }: ShortDeepLinkProps) {
+  const params = await paramsPromise;
   const id = params.id;
   let startIndex = 0;
   let initial: any[] = [];
