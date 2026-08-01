@@ -1,13 +1,26 @@
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useAuth } from "@/lib/auth/AuthProvider";
-import { SITE } from "@/lib/utils";
+import { Suspense } from "react";
 import { BrandLogo } from "@/components/site/SiteHeader";
+import OAuthCallbackShell from "./OAuthCallbackShell";
 
-type Status = "loading" | "success" | "error";
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const dynamicParams = true;
+export const revalidate = 0;
+
+type OAuthRedirectPageProps = {
+  searchParams: {
+    provider?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    picture?: string;
+    providerId?: string;
+    success?: string;
+    error?: string;
+    error_description?: string;
+  };
+};
 
 const providerLabels: Record<string, string> = {
   google: "Google",
@@ -46,33 +59,23 @@ function ProviderIcon({ provider }: { provider: string }) {
       </svg>
     );
   }
-  return (
-    <div className="h-6 w-6 rounded-full bg-ink-950/10" />
-  );
+  return <div className="h-6 w-6 rounded-full bg-ink-950/10" />;
 }
 
-export default function OAuth2RedirectPage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const auth = useAuth();
+export default function OAuth2RedirectPage({ searchParams: sp }: OAuthRedirectPageProps) {
+  const provider = (sp.provider || "").toLowerCase() || "unknown";
+  const email = sp.email ?? "";
+  const firstName = sp.firstName ?? "";
+  const lastName = sp.lastName ?? "";
+  const picture = sp.picture;
+  const providerId = sp.providerId ?? "";
+  const successParam = sp.success;
+  const errorParam = sp.error;
+  const errorDescription = sp.error_description;
 
-  const provider = (searchParams.get("provider") || "").toLowerCase() || "unknown";
-  const email = searchParams.get("email") || "";
-  const firstName = searchParams.get("firstName") || "";
-  const lastName = searchParams.get("lastName") || "";
-  const picture = searchParams.get("picture") || undefined;
-  const providerId = searchParams.get("providerId") || "";
-  const successParam = searchParams.get("success");
-  const errorParam = searchParams.get("error");
-  const errorDescription = searchParams.get("error_description");
-
-  const [status, setStatus] = useState<Status>("loading");
-  const [error, setError] = useState<string>("");
-
-  const displayName = useMemo(
-    () => (firstName && lastName ? `${firstName} ${lastName}`.trim() : firstName || lastName || email || ""),
-    [firstName, lastName, email],
-  );
+  const displayName = firstName && lastName
+    ? `${firstName} ${lastName}`.trim()
+    : firstName || lastName || email || "";
 
   const style = providerStyles[provider] ?? {
     badge: "border-ink-950/15 bg-ink-950/5 text-ink-950",
@@ -80,184 +83,33 @@ export default function OAuth2RedirectPage() {
     dot: "bg-ink-950/50",
   };
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      if (errorParam) {
-        setStatus("error");
-        setError(
-          errorDescription ||
-            errorParam === "access_denied"
-              ? "You cancelled the sign-in. Please try again."
-              : `${providerLabels[provider] || "OAuth"} sign-in failed.`,
-        );
-        return;
-      }
-
-      if (successParam !== "true") {
-        setStatus("error");
-        setError("Invalid OAuth response. Please try signing in again.");
-        return;
-      }
-
-      if (!email || !provider || !providerId) {
-        setStatus("error");
-        setError("Your sign-in data is incomplete. Please try again.");
-        return;
-      }
-
-      try {
-        await auth.oauth2Callback({
-          email,
-          firstName,
-          lastName,
-          avatarUrl: picture,
-          profileImageUrl: picture,
-          provider,
-          providerId,
-        });
-        if (cancelled) return;
-        setStatus("success");
-        const t = setTimeout(() => {
-          router.replace("/dashboard");
-        }, 800);
-        return () => clearTimeout(t);
-      } catch (e: any) {
-        if (cancelled) return;
-        const msg =
-          e?.response?.data?.message ||
-          e?.message ||
-          "Sign-in failed on our end. Please try again.";
-        setStatus("error");
-        setError(msg);
-      }
-    }
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    auth,
-    email,
-    firstName,
-    lastName,
-    picture,
-    provider,
-    providerId,
-    successParam,
-    errorParam,
-    errorDescription,
-    router,
-  ]);
-
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-ink-950 via-ink-950 to-ink-950 text-ink-100">
       <div className="min-h-screen flex flex-col items-center justify-center px-5 py-12">
         <Link
           href="/"
           className="group flex items-center justify-center mb-10"
-          aria-label={`${SITE.name} home`}
+          aria-label="MapMyTimes home"
         >
           <BrandLogo className="h-16 w-auto drop-shadow-[0_6px_0_rgba(255,255,255,0.04)]" variant="inverted" />
         </Link>
 
         <div className={`w-full max-w-md rounded-2xl bg-white text-ink-950 shadow-2xl ring-1 ${style.ring} ring-inset p-8`}>
-          <div className="flex flex-col items-center text-center">
-            <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${style.badge}`}>
-              <ProviderIcon provider={provider} />
-              <span>{providerLabels[provider] || provider || "OAuth"} sign-in</span>
-            </div>
-
-            {displayName && status === "loading" && (
-              <p className="mt-6 text-sm text-ink-600">
-                Welcome back, <span className="font-semibold text-ink-950">{displayName}</span>
-              </p>
-            )}
-
-            <div className="mt-8 relative h-20 w-20">
-              {status === "loading" && (
-                <>
-                  <span className={`absolute inset-0 rounded-full ${style.dot} opacity-20 animate-ping`} />
-                  <span className={`absolute inset-0 rounded-full ${style.dot} opacity-30 animate-pulse`} />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <svg className="h-9 w-9 animate-spin text-white" viewBox="0 0 50 50" aria-hidden="true">
-                      <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" strokeOpacity="0.15" strokeWidth="6" />
-                      <path fill="currentColor" d="M43.9 21c-.4-2.2-1.3-4.3-2.6-6.1l-3.5 3.5c1.3 2.7 1.9 5.7 1.7 8.6H43.9c.1-2.1-.1-4.1-.9-6z" />
-                    </svg>
-                  </div>
-                </>
-              )}
-              {status === "success" && (
-                <div className={`h-20 w-20 rounded-full ${style.dot} flex items-center justify-center ring-4 ring-white shadow-lg`}>
-                  <svg viewBox="0 0 24 24" className="h-11 w-11 text-white" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-              )}
-              {status === "error" && (
-                <div className="h-20 w-20 rounded-full bg-red-500 flex items-center justify-center ring-4 ring-white shadow-lg">
-                  <svg viewBox="0 0 24 24" className="h-11 w-11 text-white" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </div>
-              )}
-            </div>
-
-            <h1 className="mt-7 text-2xl font-black tracking-tight">
-              {status === "loading" && "Signing you in…"}
-              {status === "success" && "Signed in successfully"}
-              {status === "error" && "Couldn't complete sign-in"}
-            </h1>
-
-            <p className="mt-3 text-sm text-ink-600 max-w-sm">
-              {status === "loading" && (
-                <>We're finishing your {providerLabels[provider] || "OAuth"} sign-in. You'll be taken to your dashboard in a moment.</>
-              )}
-              {status === "success" && (
-                <>Redirecting you to your dashboard…</>
-              )}
-              {status === "error" && (
-                <>{error || "Something went wrong. Please try again."}</>
-              )}
-            </p>
-
-            {status === "success" && (
-              <Link
-                href="/dashboard"
-                className="mt-7 inline-flex items-center gap-2 rounded-sm bg-news px-5 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-news/90"
-              >
-                Go to dashboard now →
-              </Link>
-            )}
-
-            {status === "error" && (
-              <div className="mt-7 w-full grid grid-cols-2 gap-3">
-                <Link
-                  href="/login"
-                  className="inline-flex items-center justify-center rounded-sm border-2 border-ink-950/15 bg-white px-4 py-3 text-sm font-bold uppercase tracking-wide text-ink-950 hover:bg-ink-950/5"
-                >
-                  Back to login
-                </Link>
-                <Link
-                  href="/signup"
-                  className="inline-flex items-center justify-center rounded-sm bg-news px-4 py-3 text-sm font-bold uppercase tracking-wide text-white hover:bg-news/90"
-                >
-                  Create account
-                </Link>
-              </div>
-            )}
-
-            {status === "loading" && (
-              <div className="mt-8 w-full">
-                <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-950/10">
-                  <div className={`h-full ${style.dot} animate-[oas_1.8s_ease-in-out_infinite]`} style={{ width: "60%" }} />
-                </div>
-              </div>
-            )}
-          </div>
+          <Suspense fallback={<OAuthSkeleton style={style} />}>
+            <OAuthCallbackShell
+              provider={provider}
+              email={email}
+              firstName={firstName}
+              lastName={lastName}
+              picture={picture}
+              providerId={providerId}
+              success={successParam}
+              error={errorParam}
+              errorDescription={errorDescription}
+              displayName={displayName}
+              style={style}
+            />
+          </Suspense>
         </div>
 
         <p className="mt-8 text-xs text-ink-500 max-w-md text-center">
@@ -266,14 +118,27 @@ export default function OAuth2RedirectPage() {
           <Link href="/privacy" className="underline hover:text-ink-300">Privacy Policy</Link>.
         </p>
       </div>
+    </div>
+  );
+}
 
-      <style jsx>{`
-        @keyframes oas {
-          0% { transform: translateX(-60%); }
-          50% { transform: translateX(160%); }
-          100% { transform: translateX(260%); }
-        }
-      `}</style>
+function OAuthSkeleton({ style }: { style: { badge: string; ring: string; dot: string } }) {
+  return (
+    <div className="flex flex-col items-center text-center">
+      <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${style.badge}`}>
+        <div className="h-6 w-6 animate-pulse rounded-full bg-current/20" />
+        <span>OAuth sign-in</span>
+      </div>
+      <div className="mt-8 relative h-20 w-20">
+        <span className={`absolute inset-0 rounded-full ${style.dot} opacity-20 animate-ping`} />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <svg className="h-9 w-9 animate-spin text-white" viewBox="0 0 50 50" aria-hidden="true">
+            <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" strokeOpacity="0.15" strokeWidth="6" />
+          </svg>
+        </div>
+      </div>
+      <h1 className="mt-7 text-2xl font-black tracking-tight">Signing you in…</h1>
+      <p className="mt-3 text-sm text-ink-600 max-w-sm">Loading OAuth response…</p>
     </div>
   );
 }
