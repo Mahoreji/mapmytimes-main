@@ -1,6 +1,7 @@
 // ---------------- HOME SCREEN ----------------
-import 'dart:math' as math;
+// INTEGRATED: Riverpod providers (featured/trending/latest/shorts/categories)
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,473 +10,387 @@ import '../core/theme/colors.dart';
 import '../core/l10n/dict.dart';
 import '../core/widgets/brand.dart';
 import '../models/blog_models.dart';
-import '../services/blog_service.dart';
+import '../providers/index.dart';
 import '../widgets/news_card.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
+class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
-  final _service = BlogService.create();
-  late final Future<_HomeData> _loader = _load();
-
-  Future<_HomeData> _load() async {
-    final featured = await _service.postsList(
-      status: 'PUBLISHED',
-      isFeatured: true,
-      size: 3,
-      sort: '-publishedAt',
-    );
-    final trending = await _service.postsList(
-      status: 'PUBLISHED',
-      isTrending: true,
-      size: 6,
-    );
-    final latest = await _service.postsList(
-      status: 'PUBLISHED',
-      page: 1,
-      size: 12,
-      sort: '-publishedAt',
-    );
-    final shorts = await _service.postsList(
-      status: 'PUBLISHED',
-      postType: 'short',
-      size: 8,
-      sort: '-publishedAt',
-    );
-    final categories = await _service.categoriesList();
-    return _HomeData(
-      featured: featured.items,
-      trending: trending.items,
-      latest: latest.items,
-      shorts: shorts.items,
-      categories: categories,
-    );
+  Future<void> _onRefresh() async {
+    ref.invalidate(featuredPostsProvider);
+    ref.invalidate(trendingPostsProvider);
+    ref.invalidate(latestPostsProvider(1));
+    ref.invalidate(shortsFeedProvider);
+    ref.invalidate(categoriesProvider);
+    await Future.wait(<Future<void>>[
+      ref.read(featuredPostsProvider.future),
+      ref.read(trendingPostsProvider.future),
+      ref.read(latestPostsProvider(1).future),
+      ref.read(shortsFeedProvider.future),
+      ref.read(categoriesProvider.future),
+    ]);
   }
+
+  Widget _skel(double h, {double w = double.infinity}) => Container(
+        height: h,
+        width: w,
+        decoration: BoxDecoration(
+          border: Border.all(color: MmtColors.ink700, width: 2),
+          color: MmtColors.ink600.withOpacity(0.15),
+        ),
+      );
+
+  Widget _sectionErr(String msg, VoidCallback retry) => Padding(
+        padding: const EdgeInsets.all(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(color: MmtColors.ink950, width: 2),
+            color: MmtColors.news50,
+            boxShadow: const BoxShadow(offset: Offset(4, 4), color: MmtColors.ink950),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('⚠ ${Dict.of(context).common.loadingError}', style: TextStyle(color: MmtColors.news700, fontWeight: FontWeight.w900, fontSize: 13)),
+              const SizedBox(height: 6),
+              Text(msg, style: const TextStyle(fontSize: 12, color: MmtColors.ink700, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: retry,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: MmtColors.ink950, width: 2),
+                    color: Colors.white,
+                    boxShadow: const BoxShadow(offset: Offset(3, 3), color: MmtColors.ink950),
+                  ),
+                  child: Text(Dict.of(context).common.retry.toUpperCase(),
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.4)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final t = LangScope.of(context);
+    final t = Dict.of(context);
+
+    final featured = ref.watch(featuredPostsProvider);
+    final trending = ref.watch(trendingPostsProvider);
+    final latest = ref.watch(latestPostsProvider(1));
+    final shorts = ref.watch(shortsFeedProvider);
+    final cats = ref.watch(categoriesProvider);
+    final unread = ref.watch(unreadCountProvider);
 
     return RefreshIndicator(
-      onRefresh: () async {
-        setState(() {});
-      },
+      onRefresh: _onRefresh,
       color: MmtColors.news,
       backgroundColor: Colors.white,
       strokeWidth: 3,
       child: CustomScrollView(
         slivers: [
-          _buildSliverAppBar(dark, t),
+          _buildSliverAppBar(dark, t, unread.value),
           SliverToBoxAdapter(
             child: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
+                color: MmtColors.news50,
                 border: Border(bottom: BorderSide(color: MmtColors.ink950, width: 2)),
               ),
-              child: FutureBuilder<_HomeData>(
-                future: _loader,
-                builder: (ctx, snap) {
-                  if (snap.connectionState == ConnectionState.waiting) {
-                    return _loading(ctx, t);
-                  }
-                  if (snap.hasError) return _error(ctx, t, snap.error);
-                  final data = snap.data!;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _hero(ctx, t, dark, data),
-                      _sectionEyebrow(t.featuredReports),
-                      _featured(ctx, data.featured),
-                      _sectionEyebrow(t.trendingNow),
-                      _trending(ctx, t, data.trending),
-                      _sectionEyebrow(t.latestStories),
-                      _latest(ctx, data.latest),
-                      _sectionEyebrow(t.categories),
-                      _categories(ctx, data.categories),
-                      const SizedBox(height: 32),
-                      Container(
-                        height: 2,
-                        color: MmtColors.ink950,
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 120),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            SectionEyebrow(t.followUs),
-                            const SizedBox(height: 24),
-                            Text(
-                              t.mission,
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                height: 1.65,
-                                color: dark ? Colors.white70 : MmtColors.textMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              t.copyrightYear(DateTime.now().year),
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.5,
-                                color: dark ? Colors.white38 : MmtColors.textFaint,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
+              padding: const EdgeInsets.fromLTRB(18, 20, 18, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SectionEyebrow(label: t.home.heroEyebrow),
+                  const SizedBox(height: 12),
+                  Text(t.home.heroTitle,
+                      style: GoogleFonts.archivoBlack(
+                        fontSize: 30,
+                        height: 1.02,
+                        color: dark ? Colors.white : MmtColors.ink950,
+                        letterSpacing: -0.4,
+                      )),
+                  const SizedBox(height: 10),
+                  Text(t.home.heroBody, style: TextStyle(fontSize: 13, color: dark ? MmtColors.ink600 : MmtColors.ink700, height: 1.6, fontWeight: FontWeight.w500)),
+                ],
               ),
             ),
           ),
+          // Featured Reports
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 24, 18, 6),
+              child: SectionEyebrow(label: t.home.featured),
+            ),
+          ),
+          featured.when(
+            loading: () => SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+              sliver: SliverList.separated(
+                itemCount: 2,
+                separatorBuilder: (_, __) => const SizedBox(height: 14),
+                itemBuilder: (_, __) => _skel(240),
+              ),
+            ),
+            error: (e, _) => SliverToBoxAdapter(child: _sectionErr(e.toString(), () => ref.invalidate(featuredPostsProvider))),
+            data: (list) => SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+              sliver: SliverList.separated(
+                itemCount: list.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 14),
+                itemBuilder: (_, i) => NewsCardVertical(list[i], onTap: () => _openPost(context, list[i])),
+              ),
+            ),
+          ),
+          // Trending Now
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 28, 18, 10),
+              child: Row(
+                children: [
+                  SectionEyebrow(label: t.home.trending),
+                  const Spacer(),
+                  Icon(FontAwesomeIcons.fire, size: 16, color: MmtColors.news),
+                ],
+              ),
+            ),
+          ),
+          trending.when(
+            loading: () => SliverPadding(
+              padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+              sliver: SliverList.separated(
+                itemCount: 4,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, __) => _skel(76),
+              ),
+            ),
+            error: (e, _) => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 18), child: _sectionErr(e.toString(), () => ref.invalidate(trendingPostsProvider)))),
+            data: (list) {
+              if (list.isEmpty) {
+                return const SliverToBoxAdapter(child: SizedBox.shrink());
+              }
+              return SliverPadding(
+                padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
+                sliver: SliverList.separated(
+                  itemCount: list.length > 6 ? 6 : list.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) => InkWell(
+                    onTap: () => _openPost(context, list[i]),
+                    child: TrendingItem(i + 1, list[i]),
+                  ),
+                ),
+              );
+            },
+          ),
+          // Latest Stories
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 28, 18, 10),
+              child: SectionEyebrow(label: t.home.latest),
+            ),
+          ),
+          latest.when(
+            loading: () => SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 0.62),
+                delegate: SliverChildBuilderDelegate((_, __) => _skel(180), childCount: 4),
+              ),
+            ),
+            error: (e, _) => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 18), child: _sectionErr(e.toString(), () => ref.invalidate(latestPostsProvider(1)))),
+            data: (list) => SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 0.58),
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) => NewsCardVertical(list[i], compact: true, onTap: () => _openPost(context, list[i])),
+                  childCount: list.length > 12 ? 12 : list.length,
+                ),
+              ),
+            ),
+          ),
+          // Categories
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 28, 18, 12),
+              child: SectionEyebrow(label: t.home.categories),
+            ),
+          ),
+          cats.when(
+            loading: () => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 18), child: Wrap(spacing: 8, runSpacing: 8, children: List<Widget>.generate(6, (i) => _skel(28, w: 80))))),
+            error: (e, _) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+            data: (list) => SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: list
+                      .asMap()
+                      .entries
+                      .map((e) => MmtChip(
+                            label: e.value.name,
+                            selected: e.key == 0,
+                            onTap: () {
+                              final slug = e.value.slug;
+                              if (slug != null) context.push('/category/$slug');
+                            },
+                          ))
+                      .toList(growable: false),
+                ),
+              ),
+            ),
+          ),
+          // Footer
+          const SliverToBoxAdapter(child: SizedBox(height: 32)),
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 18),
+              height: 2,
+              color: MmtColors.ink950,
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 22, 18, 30),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SectionEyebrow(label: t.footer.followUs),
+                  const SizedBox(height: 16),
+                  Text(t.footer.mission, style: TextStyle(fontSize: 12.5, color: dark ? MmtColors.ink600 : MmtColors.ink700, height: 1.7, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      _socBtn(FontAwesomeIcons.facebookF, Env.socialFacebook),
+                      const SizedBox(width: 10),
+                      _socBtn(FontAwesomeIcons.xTwitter, Env.socialTwitter),
+                      const SizedBox(width: 10),
+                      _socBtn(FontAwesomeIcons.instagram, Env.socialInstagram),
+                      const SizedBox(width: 10),
+                      _socBtn(FontAwesomeIcons.youtube, Env.socialYoutube),
+                      const SizedBox(width: 10),
+                      _socBtn(FontAwesomeIcons.linkedinIn, Env.socialLinkedin),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+                  Text('© ${DateTime.now().year} MAPMYTOUR LLP, India · ${t.footer.copyright}',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: MmtColors.ink600)),
+                ],
+              ),
+            ),
+          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 20)),
         ],
       ),
     );
   }
 
-  Widget _buildSliverAppBar(bool dark, Dict t) {
+  Widget _socBtn(IconData ic, String url) {
+    return InkWell(
+      onTap: () async {
+        try { await Env.launchUrlExternal(url); } catch (_) {}
+      },
+      child: Container(
+        width: 36,
+        height: 36,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          border: Border.all(color: MmtColors.ink950, width: 2),
+          color: Colors.white,
+        ),
+        child: FaIcon(ic, size: 14, color: MmtColors.ink950),
+      ),
+    );
+  }
+
+  SliverAppBar _buildSliverAppBar(bool dark, Dict t, int? unread) {
+    final Brightness mode = dark ? Brightness.dark : Brightness.light;
     return SliverAppBar(
       pinned: true,
       floating: false,
-      snap: false,
-      expandedHeight: 140,
-      collapsedHeight: 96,
-      backgroundColor: dark ? MmtColors.ink950 : MmtColors.surface,
+      backgroundColor: dark ? MmtColors.ink950 : Colors.white,
+      foregroundColor: dark ? Colors.white : MmtColors.ink950,
       surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(2),
         child: Container(height: 2, color: MmtColors.ink950),
       ),
-      flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-        centerTitle: false,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+      titleSpacing: 16,
+      title: Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
           children: [
-            const SizedBox(height: 44),
-            const BrandLogo(size: 18, showTagline: false),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 36,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: InkWell(
-                      onTap: () => context.push('/search'),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: dark ? MmtColors.ink900 : Colors.white,
-                          border: const Border.fromBorderSide(
-                            BorderSide(color: MmtColors.ink950, width: 2),
-                          ),
-                        ),
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.search_rounded, size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              t.search,
-                              style: GoogleFonts.inter(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: dark ? Colors.white54 : MmtColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  InkWell(
-                    onTap: () => LangScope.toggle(context),
-                    child: Container(
-                      height: 36,
-                      width: 48,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(
-                        color: MmtColors.news,
-                        border: Border.fromBorderSide(
-                          BorderSide(color: MmtColors.ink950, width: 2),
-                        ),
-                      ),
-                      child: Text(
-                        LangScope.codeOf(context) == LangCode.en ? 'EN' : 'हि',
-                        style: GoogleFonts.getFont(
-                          'Archivo Black',
-                          fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.6,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _hero(BuildContext ctx, Dict t, bool dark, _HomeData data) {
-    final hero = (data.featured.isNotEmpty) ? data.featured.first : null;
-    return Container(
-      color: dark ? MmtColors.ink900 : MmtColors.news50,
-      child: Container(
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: MmtColors.ink950, width: 2)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 32, 20, 28),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: const BoxDecoration(
-                color: MmtColors.news,
-                border: Border.fromBorderSide(BorderSide(color: MmtColors.ink950, width: 2)),
-              ),
-              child: Text(
-                t.tagline.toUpperCase(),
-                style: GoogleFonts.getFont(
-                  'Archivo Black',
-                  fontSize: 11,
-                  letterSpacing: 2.2,
-                  fontWeight: FontWeight.w900,
-                  color: Colors.white,
-                  height: 1.0,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              t.heroTitle,
-              style: GoogleFonts.getFont(
-                'Archivo Black',
-                fontSize: 34,
-                height: 1.0,
-                letterSpacing: -0.8,
-                fontWeight: FontWeight.w900,
-                color: dark ? Colors.white : MmtColors.ink950,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              t.heroBody,
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                height: 1.6,
-                color: dark ? Colors.white70 : MmtColors.ink900,
-              ),
-            ),
-            if (hero != null) ...[
-              const SizedBox(height: 24),
-              NewsCardVertical(
-                post: hero,
-                onTap: () => _openArticle(ctx, hero),
-                compact: false,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionEyebrow(String title) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 16),
-      child: SectionEyebrow(title),
-    );
-  }
-
-  Widget _featured(BuildContext ctx, List<BlogPostSummaryResponse> items) {
-    final list = items.length > 1 ? items.sublist(math.min(1, items.length)) : items;
-    if (list.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          for (final p in list) ...[
-            NewsCardVertical(
-              post: p,
-              compact: false,
-              onTap: () => _openArticle(ctx, p),
-            ),
-            const SizedBox(height: 18),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _trending(BuildContext ctx, Dict t, List<BlogPostSummaryResponse> items) {
-    if (items.isEmpty) return _empty(t.noStoriesYet);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.transparent,
-          border: Border.fromBorderSide(BorderSide(color: MmtColors.ink950, width: 2)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-          child: Column(
-            children: [
-              for (int i = 0; i < items.length; i++) ...[
-                TrendingItem(
-                  index: i,
-                  post: items[i],
-                  onTap: () => _openArticle(ctx, items[i]),
-                ),
-                if (i != items.length - 1)
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: MmtColors.divider,
-                  ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _latest(BuildContext ctx, List<BlogPostSummaryResponse> items) {
-    if (items.isEmpty) return _empty(LangScope.of(context).noStoriesYet);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        children: [
-          for (final p in items) ...[
-            NewsCardVertical(
-              post: p,
-              compact: true,
-              onTap: () => _openArticle(ctx, p),
-            ),
-            const SizedBox(height: 18),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _categories(BuildContext ctx, List<CategoryResponse> cats) {
-    if (cats.isEmpty) return const SizedBox.shrink();
-    final shown = cats.take(14).toList(growable: false);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
-        children: shown.map((c) {
-          return MmtChip(label: c.name.toUpperCase());
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _empty(String label) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(color: MmtColors.ink950, width: 2),
-            color: Theme.of(ctx).brightness == Brightness.dark ? MmtColors.ink900 : MmtColors.chipBg,
-          ),
-          child: Text(label),
-        ),
-      );
-
-  Widget _loading(BuildContext ctx, Dict t) => SizedBox(
-        height: 240,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(
-                width: 36,
+            const BrandLogo(size: 14),
+            const Spacer(),
+            InkWell(
+              onTap: () => context.push('/search'),
+              child: Container(
                 height: 36,
-                child: CircularProgressIndicator(
-                  color: MmtColors.news,
-                  strokeWidth: 4,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(border: Border.all(color: MmtColors.ink950, width: 2), color: Colors.white),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.search, size: 16, color: MmtColors.ink700),
+                    const SizedBox(width: 8),
+                    Text(t.nav.search, style: TextStyle(fontSize: 12, color: MmtColors.ink600, fontWeight: FontWeight.w600)),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              Text(t.loading),
-            ],
-          ),
-        ),
-      );
-
-  Widget _error(BuildContext ctx, Dict t, Object? err) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: MmtColors.danger, width: 2),
-            color: Theme.of(ctx).brightness == Brightness.dark ? MmtColors.ink900 : Colors.white,
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(t.somethingWentWrong),
-              const SizedBox(height: 10),
-              if (err != null)
-                Text(
-                  err.toString(),
-                  maxLines: 6,
-                  style: const TextStyle(fontSize: 12, color: MmtColors.textMuted),
-                ),
-              const SizedBox(height: 14),
-              OutlinedButton(
-                onPressed: () => setState(() {}),
-                child: Text(t.retry),
+            ),
+            const SizedBox(width: 10),
+            InkWell(
+              onTap: () {
+                final s = LangScope.of(context);
+                LangScope.ofState(context).toggle();
+                final newT = Dict.of(context);
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  backgroundColor: MmtColors.ink950,
+                  content: Text(newT.common.languageSwitched, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  duration: const Duration(milliseconds: 1200),
+                ));
+              },
+              child: Container(
+                width: 48,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: MmtColors.news, border: Border.all(color: MmtColors.ink950, width: 2)),
+                child: Text(LangScope.codeOf(context).name.toUpperCase(),
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.white, letterSpacing: 0.6)),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
 
-  void _openArticle(BuildContext ctx, BlogPostSummaryResponse p) {
-    if (p.postType == PostType.short) {
-      context.push('/shorts?startId=${p.id}&startSlug=${p.slug}');
-      return;
+  void _openPost(BuildContext ctx, BlogPostSummaryResponse p) {
+    final PostType type = p.postType ?? PostType.article;
+    if (type == PostType.short) {
+      ctx.push('/shorts${p.slug != null ? '?startSlug=${Uri.encodeQueryComponent(p.slug!)}' : (p.id != null ? '?startId=${Uri.encodeQueryComponent(p.id!)}' : '')}');
+    } else {
+      final sp = <String, String>{};
+      if (p.id != null) sp['id'] = p.id!;
+      ctx.push('/article/${Uri.encodeQueryComponent(p.slug ?? p.id ?? '')}', extra: sp.isEmpty ? null : sp);
     }
-    context.push('/article/${p.slug}?id=${p.id}');
   }
 }
 
-// ----------- Bundled data class for home screen future -----------
-class _HomeData {
-  final List<BlogPostSummaryResponse> featured;
-  final List<BlogPostSummaryResponse> trending;
-  final List<BlogPostSummaryResponse> latest;
-  final List<BlogPostSummaryResponse> shorts;
-  final List<CategoryResponse> categories;
-  const _HomeData({
-    required this.featured,
-    required this.trending,
-    required this.latest,
-    required this.shorts,
-    required this.categories,
-  });
-}
+

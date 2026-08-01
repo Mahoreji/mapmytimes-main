@@ -7,6 +7,40 @@ import 'package:flutter/widgets.dart';
 
 enum LangCode { en, hi }
 
+// ---------- Nested accessor classes (used as t.common.share, t.nav.shorts, etc) ----------
+class CommonDict {
+  final String share;
+  final String copyLink;
+  final String linkCopied;
+  final String refresh;
+  final String loadingError;
+  const CommonDict({
+    required this.share,
+    required this.copyLink,
+    required this.linkCopied,
+    required this.refresh,
+    required this.loadingError,
+  });
+}
+
+class NavDict {
+  final String shorts;
+  const NavDict({required this.shorts});
+}
+
+class ShortsDict {
+  final String empty;
+  const ShortsDict({required this.empty});
+}
+
+class FooterDict {
+  final String copyright;
+  const FooterDict({required this.copyright});
+}
+
+// =============================================================================
+// Dict
+// =============================================================================
 class Dict {
   // Brand
   final String tagline;
@@ -33,7 +67,7 @@ class Dict {
   final String readMore;
   final String exploreMore;
 
-  // Common
+  // Flat common
   final String loading;
   final String somethingWentWrong;
   final String retry;
@@ -65,7 +99,7 @@ class Dict {
   final String noOpenRoles;
   final String applyNow;
 
-  // Shorts
+  // Shorts / videos
   final String watchMore;
   final String allVideos;
 
@@ -123,9 +157,28 @@ class Dict {
     required this.noResultsFor,
   });
 
+  // ---------- Nested accessors (sugar for t.common.share etc) ----------
+  CommonDict get common => CommonDict(
+        share: 'Share',
+        copyLink: 'Copy link',
+        linkCopied: 'Link copied to clipboard',
+        refresh: retry,
+        loadingError: somethingWentWrong,
+      );
+
+  NavDict get nav => NavDict(shorts: shorts);
+
+  ShortsDict get shortsDict => ShortsDict(empty: noStoriesYet);
+
+  FooterDict get footer => FooterDict(copyright: copyright);
+
+  // ---------- String helpers ----------
   String copyrightYear(int year) => copyright.replaceAll('%YEAR%', year.toString());
   String authorLabel(String who) => '$byAuthor $who';
   String minRead(int? n) => n == null ? '' : '$n min read';
+
+  // ---------- Convenience: Dict.of(ctx) === LangScope.of(ctx) ----------
+  static Dict of(BuildContext ctx) => LangScope.of(ctx);
 }
 
 const Dict en = Dict(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -6,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mapmytimes/core/env.dart';
 import 'package:mapmytimes/core/l10n/dict.dart';
 import 'package:mapmytimes/core/theme/index.dart';
+import 'package:mapmytimes/providers/index.dart';
 import 'package:mapmytimes/screens/app_shell.dart';
 import 'package:mapmytimes/screens/home_screen.dart';
 import 'package:mapmytimes/screens/news_article_screen.dart';
@@ -18,11 +20,51 @@ final GlobalKey<NavigatorState> _rootNavigatorKey =
 final GlobalKey<NavigatorState> _shellNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'shell');
 
+// Protected routes — require authenticated session
+const Set<String> _protectedRoutes = <String>{'dashboard', 'career-apply'};
+const Set<String> _protectedPathPrefixes = <String>{'/dashboard', '/careers/'};
+
+bool _isProtected(String matchedLocation) {
+  if (matchedLocation == '/dashboard') return true;
+  if (matchedLocation.startsWith('/careers/') && matchedLocation.endsWith('/apply')) return true;
+  return false;
+}
+
+bool _isAuthGate(String matchedLocation) => matchedLocation == '/login';
+
 final routerProvider = Provider<GoRouter>((ref) {
+  // Listen to auth state changes so GoRouter re-evaluates redirects
+  final authListenable = ValueNotifier<int>(0);
+  ref.listen<AuthState>(authControllerProvider, (previous, next) {
+    authListenable.value = authListenable.value + 1;
+  });
+
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     debugLogDiagnostics: Env.isDebug,
+    refreshListenable: authListenable,
+    redirect: (BuildContext context, GoRouterState state) async {
+      final AuthStatus status = ref.read(authControllerProvider).status;
+      // Wait for bootstrap if needed (only block protected route during unknown briefly)
+      bool known = status != AuthStatus.unknown;
+      bool authenticated = ref.read(isAuthenticatedProvider);
+
+      final to = state.matchedLocation;
+      final goingToProtected = _isProtected(to);
+      final goingToLogin = _isAuthGate(to);
+
+      // Not yet logged in and going to protected → push login with deep-link return
+      if (known && !authenticated && goingToProtected) {
+        final returnTo = Uri.encodeQueryComponent(to.isEmpty ? '/' : to);
+        return '/login?returnTo=$returnTo';
+      }
+      // Logged in and going to login screen → send to returnTo or home
+      if (known && authenticated && goingToLogin) {
+        return state.uri.queryParameters['returnTo'] ?? '/';
+      }
+      return null;
+    },
     routes: <RouteBase>[
       ShellRoute(
         navigatorKey: _shellNavigatorKey,
@@ -70,7 +112,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) => MaterialPage<void>(
           key: state.pageKey,
-          fullscreenDialog: false,
           child: NewsArticleScreen(
             slug: state.pathParameters['slug']!,
             postId: state.uri.queryParameters['id'],
@@ -142,13 +183,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
+        path: '/careers/:id/apply',
+        name: 'career-apply',
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) => MaterialPage<void>(
+          key: state.pageKey,
+          fullscreenDialog: true,
+          child: CareerApplyScreen(jobId: state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
         path: '/login',
         name: 'login',
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) => MaterialPage<void>(
           key: state.pageKey,
           fullscreenDialog: true,
-          child: const LoginScreen(),
+          child: LoginScreen(
+            returnTo: state.uri.queryParameters['returnTo'],
+          ),
         ),
       ),
       GoRoute(
@@ -196,39 +249,52 @@ final routerProvider = Provider<GoRouter>((ref) {
 });
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  runZonedGuarded<Future<void>>(() async {
+    WidgetsFlutterBinding.ensureInitialized();
 
-  await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+    await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
 
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: MmtColors.ink950,
-    statusBarIconBrightness: Brightness.light,
-    statusBarBrightness: Brightness.dark,
-    systemNavigationBarColor: MmtColors.ink950,
-    systemNavigationBarIconBrightness: Brightness.light,
-    systemNavigationBarDividerColor: Colors.transparent,
-  ));
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: MmtColors.ink950,
+      statusBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+      systemNavigationBarColor: MmtColors.ink950,
+      systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarDividerColor: Colors.transparent,
+    ));
 
-  await Env.load();
+    await Env.load();
 
-  final saved = await SharedPreferences.getInstance();
-  final storedCode = saved.getString('app_language') ?? LangCode.en.name;
-  final LangCode initialLang = LangCode.values.firstWhere(
-    (c) => c.name == storedCode,
-    orElse: () => LangCode.en,
-  );
+    // -------------------------------------------------------------------------
+    // Preload synchronous dependencies so Riverpod overrides can use real values
+    //  1) SharedPreferences (used by language restore + token store)
+    //  2) Initial language code (EN/हि)
+    // -------------------------------------------------------------------------
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? storedCode = prefs.getString('app_language');
+    final LangCode initialLang = LangCode.values.firstWhere(
+      (c) => c.name == (storedCode ?? LangCode.en.name),
+      orElse: () => LangCode.en,
+    );
 
-  runApp(
-    ProviderScope(
+    runApp(
+      ProviderScope(
+      // Override providers with preloaded synchronous values to avoid async gaps
+      overrides: <Override>[
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
       child: LangScope(
         initialLang: initialLang,
         child: const MapMyTimesApp(),
+        ),
       ),
-    ),
-  );
+    );
+  }, (Object error, StackTrace stack) {
+    debugPrint('RUNZONED error: $error\n$stack');
+  });
 }
 
 class MapMyTimesApp extends ConsumerStatefulWidget {
@@ -239,6 +305,17 @@ class MapMyTimesApp extends ConsumerStatefulWidget {
 }
 
 class _MapMyTimesAppState extends ConsumerState<MapMyTimesApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Kick off auth bootstrap (restore tokens + hydrate /profile).
+    // Riverpod StateNotifier constructor calls _bootstrap() automatically.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // ignore: unused_result
+      ref.refresh(authControllerProvider);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final GoRouter router = ref.watch(routerProvider);

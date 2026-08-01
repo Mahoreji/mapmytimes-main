@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,7 +11,7 @@ import '../core/theme/colors.dart';
 import '../core/l10n/dict.dart';
 import '../core/widgets/brand.dart';
 import '../models/blog_models.dart';
-import '../services/blog_service.dart';
+import '../providers/index.dart';
 import 'home_screen.dart';
 import 'shorts_feed.dart';
 import 'news_article_screen.dart';
@@ -298,87 +299,148 @@ class _SocialIcon extends StatelessWidget {
 
 // ========================================================================
 // Standalone News List screen (route: /news) used from shell bottom nav tab 1
+// INTEGRATED: newsListProvider Riverpod, RefreshIndicator, error retry cards
 // ========================================================================
-class NewsListScreen extends StatefulWidget {
+class NewsListScreen extends ConsumerStatefulWidget {
   const NewsListScreen({super.key});
   @override
-  State<NewsListScreen> createState() => _NewsListScreenState();
+  ConsumerState<NewsListScreen> createState() => _NewsListScreenState();
 }
 
-class _NewsListScreenState extends State<NewsListScreen>
+class _NewsListScreenState extends ConsumerState<NewsListScreen>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
 
-  final _svc = BlogService.create();
-  late final Future<List<BlogPostSummaryResponse>> _load = _svc
-      .postsList(status: 'PUBLISHED', page: 1, size: 30, sort: '-publishedAt')
-      .then((p) => p.items);
+  Widget _skel(double h, {double w = double.infinity}) => Container(
+        height: h,
+        width: w,
+        decoration: BoxDecoration(
+          border: Border.all(color: MmtColors.ink700, width: 2),
+          color: MmtColors.ink600.withOpacity(0.12),
+        ),
+      );
+
+  Future<void> _onRefresh() async {
+    ref.invalidate(newsListProvider);
+    await ref.read(newsListProvider.future);
+  }
 
   @override
   Widget build(BuildContext ctx) {
     super.build(ctx);
     final dark = Theme.of(ctx).brightness == Brightness.dark;
-    final t = LangScope.of(ctx);
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          pinned: true,
-          floating: false,
-          backgroundColor: dark ? MmtColors.ink950 : MmtColors.surface,
-          surfaceTintColor: Colors.transparent,
-          title: Text(t.news),
-          titleTextStyle: GoogleFonts.getFont(
-            'Archivo Black',
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.2,
-            color: dark ? Colors.white : MmtColors.ink950,
+    final t = Dict.of(ctx);
+    final listAsync = ref.watch(newsListProvider);
+
+    return RefreshIndicator(
+      color: MmtColors.news,
+      onRefresh: _onRefresh,
+      child: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            floating: false,
+            backgroundColor: dark ? MmtColors.ink950 : MmtColors.surface,
+            surfaceTintColor: Colors.transparent,
+            title: Text(t.news),
+            titleTextStyle: GoogleFonts.getFont(
+              'Archivo Black',
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.2,
+              color: dark ? Colors.white : MmtColors.ink950,
+            ),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(2),
+              child: Container(height: 2, color: MmtColors.ink950),
+            ),
           ),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(2),
-            child: Container(height: 2, color: MmtColors.ink950),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: FutureBuilder<List<BlogPostSummaryResponse>>(
-            future: _load,
-            builder: (c, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  heightFactor: 10,
-                  child: CircularProgressIndicator(color: MmtColors.news),
-                );
-              }
-              final items = snap.data ?? <BlogPostSummaryResponse>[];
-              if (items.isEmpty) {
-                return Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Center(child: Text(t.noStoriesYet)),
-                );
-              }
-              return Padding(
+          listAsync.when(
+            loading: () => SliverToBoxAdapter(
+              child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
                 child: Column(
                   children: [
-                    for (final p in items) ...[
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 18),
-                        child: InkWell(
-                          onTap: () {
-                            context.push('/article/${p.slug}?id=${p.id}');
-                          },
-                          child: _NewsListTile(p: p),
+                    for (int i = 0; i < 6; i++) ...[
+                      _skel(104),
+                      const SizedBox(height: 18),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            error: (e, _) => SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: MmtColors.ink950, width: 2),
+                    color: MmtColors.news50,
+                    boxShadow: const BoxShadow(offset: Offset(4, 4), color: MmtColors.ink950),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '⚠ ${t.common.loadingError}',
+                        style: TextStyle(color: MmtColors.news700, fontWeight: FontWeight.w900, fontSize: 14),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(e.toString(), style: const TextStyle(fontSize: 12, color: MmtColors.ink700)),
+                      const SizedBox(height: 14),
+                      InkWell(
+                        onTap: _onRefresh,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: MmtColors.ink950, width: 2),
+                            color: Colors.white,
+                            boxShadow: const BoxShadow(offset: Offset(3, 3), color: MmtColors.ink950),
+                          ),
+                          child: Text(t.common.retry.toUpperCase(),
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.4)),
                         ),
                       ),
                     ],
-                  ],
+                  ),
+                ),
+              ),
+            ),
+            data: (items) {
+              if (items.isEmpty) {
+                return SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(30),
+                    child: Center(child: Text(t.noStoriesYet)),
+                  ),
+                );
+              }
+              return SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+                  child: Column(
+                    children: [
+                      for (final p in items) ...[
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 18),
+                          child: InkWell(
+                            onTap: () {
+                              ctx.push('/article/${p.slug}?id=${p.id}');
+                            },
+                            child: _NewsListTile(p: p),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               );
             },
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -390,7 +452,9 @@ class _NewsListTile extends StatelessWidget {
   @override
   Widget build(BuildContext ctx) {
     final dark = Theme.of(ctx).brightness == Brightness.dark;
-    final cat = (p.categories?.isNotEmpty ?? false) ? p.categories!.first.name.toUpperCase() : 'NEWS';
+    final cat = (p.categories?.isNotEmpty ?? false)
+        ? p.categories!.first.name.toUpperCase()
+        : 'NEWS';
     final date = p.publishedAt != null
         ? DateFormat('dd MMM yyyy').format(p.publishedAt!.toLocal())
         : '';
