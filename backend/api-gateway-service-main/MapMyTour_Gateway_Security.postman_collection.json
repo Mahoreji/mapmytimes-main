@@ -1,0 +1,330 @@
+{
+	"info": {
+		"_postman_id": "7b4be104-d2e1-45f8-b493-271d68ab3292",
+		"name": "MapMyTour - API Gateway Master",
+		"description": "Production-grade Postman collection for the MapMyTour API Gateway. Features a comprehensive security administration suite, real-time telemetry, and all proxied microservice routes.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "🛡️ Security Administration",
+			"description": "Native gateway endpoints for managing IP whitelists, bot bans, and behavioral threat scoring.",
+			"item": [
+				{
+					"name": "IP Whitelisting",
+					"item": [
+						{
+							"name": "List All Whitelisted IPs",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/security/ip-whitelist",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"security",
+										"ip-whitelist"
+									]
+								},
+								"description": "Retrieves the full list of active whitelisted IP addresses from the PostgreSQL source-of-truth."
+							},
+							"response": []
+						},
+						{
+							"name": "Add IP to Whitelist",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"ip\": \"122.161.50.44\",\n    \"reason\": \"Office Static IP\",\n    \"ttlDays\": 30\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/security/ip-whitelist",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"security",
+										"ip-whitelist"
+									]
+								},
+								"description": "Permanently whitelists an IP address for access to administrative routes."
+							},
+							"response": []
+						},
+						{
+							"name": "Check IP Whitelist Status",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/security/ip-whitelist/122.161.50.44",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"security",
+										"ip-whitelist",
+										"122.161.50.44"
+									]
+								},
+								"description": "Verifies if the specified IP address is currently whitelisted for admin access."
+							},
+							"response": []
+						},
+						{
+							"name": "Whitelist Caller's Own IP",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/security/whitelist-my-ip?ttlDays=30",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"security",
+										"whitelist-my-ip"
+									],
+									"query": [
+										{
+											"key": "ttlDays",
+											"value": "30"
+										}
+									]
+								},
+								"description": "Convenience method to whitelist the current requester's IP address."
+							},
+							"response": []
+						},
+						{
+							"name": "Remove IP from Whitelist",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/security/ip-whitelist/122.161.50.44",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"security",
+										"ip-whitelist",
+										"122.161.50.44"
+									]
+								},
+								"description": "Immediately revokes admin access for the specified IP address."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Threat & Bot Management",
+					"item": [
+						{
+							"name": "Get Current Threat Score",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/security/threat-score/203.0.113.42",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"security",
+										"threat-score",
+										"203.0.113.42"
+									]
+								},
+								"description": "Retrieves the rolling behavioral threat score for any IP from the Redis cache."
+							},
+							"response": []
+						},
+						{
+							"name": "Manually Lift Bot Ban",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/admin/security/bot-ban/203.0.113.42",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"security",
+										"bot-ban",
+										"203.0.113.42"
+									]
+								},
+								"description": "Clears a detected bot / scanner ban for the specified IP."
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "📊 Monitoring & Telemetry",
+			"description": "Real-time insights and system health for the API gateway infrastructure.",
+			"item": [
+				{
+					"name": "Security Telemetry Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/v1/admin/security/telemetry/stats",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"security",
+								"telemetry",
+								"stats"
+							]
+						},
+						"description": "Provides real-time telemetry on blocked requests, whitelists, and production system health."
+					},
+					"response": []
+				},
+				{
+					"name": "Actuator Health Hub",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/actuator/health",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"actuator",
+								"health"
+							]
+						},
+						"description": "Aggregated health status for Redis, PostgreSQL, Circuit Breakers, and the Security platform."
+					},
+					"response": []
+				},
+				{
+					"name": "OpenAPI Documentation (JSON)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/v3/api-docs",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"v3",
+								"api-docs"
+							]
+						},
+						"description": "Raw OpenAPI definition used by Swagger UI."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🚀 Proxied Service Routes",
+			"description": "Master reference for all microservices routed through the gateway (Auth, Payment, Booking, etc.)",
+			"item": [
+				{
+					"name": "Auth Service",
+					"item": [
+						{
+							"name": "Login",
+							"request": {
+								"method": "POST",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/login"
+								}
+							}
+						},
+						{
+							"name": "Register",
+							"request": {
+								"method": "POST",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/auth/register"
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "User Service",
+					"item": [
+						{
+							"name": "Get Profile",
+							"request": {
+								"method": "GET",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/user/profile"
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Payment Service",
+					"item": [
+						{
+							"name": "Create Cashfree Order",
+							"request": {
+								"method": "POST",
+								"url": {
+									"raw": "{{baseUrl}}/api/v1/payment/create"
+								}
+							}
+						}
+					]
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	]
+}

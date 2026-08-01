@@ -1,0 +1,1028 @@
+{
+	"info": {
+		"_postman_id": "c1a2b3c4-d5e6-4f7g-8h9i-j0k1l2m3n4o5",
+		"name": "Customer Support Service - 100% Complete",
+		"description": "Definitive API collection for MapMyTour Customer Support Service, including Career Module, Support Tickets, Knowledge Base, AI Chatbot, and Feedback System.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Career Module",
+			"item": [
+				{
+					"name": "Public - Jobs",
+					"item": [
+						{
+							"name": "Get All Jobs",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/jobs?page=0&size=10&sortBy=createdAt&sortDir=DESC",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"jobs"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "0"
+										},
+										{
+											"key": "size",
+											"value": "10"
+										},
+										{
+											"key": "sortBy",
+											"value": "createdAt"
+										},
+										{
+											"key": "sortDir",
+											"value": "DESC"
+										},
+										{
+											"key": "department",
+											"value": "",
+											"disabled": true
+										},
+										{
+											"key": "jobType",
+											"value": "",
+											"disabled": true
+										},
+										{
+											"key": "experienceLevel",
+											"value": "",
+											"disabled": true
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Search Jobs",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/jobs/search?query=developer&page=0&size=10",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"jobs",
+										"search"
+									],
+									"query": [
+										{
+											"key": "query",
+											"value": "developer"
+										},
+										{
+											"key": "page",
+											"value": "0"
+										},
+										{
+											"key": "size",
+											"value": "10"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Job Details",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/jobs/{{job_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"jobs",
+										"{{job_id}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Departments",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/jobs/departments",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"jobs",
+										"departments"
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Public - Applications",
+					"item": [
+						{
+							"name": "Submit Application",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Id",
+										"value": "{{user_id}}"
+									},
+									{
+										"key": "X-Authenticated",
+										"value": "true"
+									}
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "jobId",
+											"value": "{{job_id}}",
+											"type": "text"
+										},
+										{
+											"key": "applicantName",
+											"value": "John Doe",
+											"type": "text"
+										},
+										{
+											"key": "applicantEmail",
+											"value": "john.doe@example.com",
+											"type": "text"
+										},
+										{
+											"key": "applicantPhone",
+											"value": "+919876543210",
+											"type": "text"
+										},
+										{
+											"key": "resume",
+											"type": "file",
+											"src": ""
+										},
+										{
+											"key": "coverLetter",
+											"value": "I am excited to apply...",
+											"type": "text"
+										},
+										{
+											"key": "currentCtc",
+											"value": "10 LPA",
+											"type": "text"
+										},
+										{
+											"key": "expectedCtc",
+											"value": "15 LPA",
+											"type": "text"
+										},
+										{
+											"key": "noticePeriod",
+											"value": "30 days",
+											"type": "text"
+										},
+										{
+											"key": "yearsOfExperience",
+											"value": "5",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/applications",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"applications"
+									]
+								}
+							}
+						},
+						{
+							"name": "My Applications",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Id",
+										"value": "{{user_id}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/applications/my?page=0&size=10",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"applications",
+										"my"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "0"
+										},
+										{
+											"key": "size",
+											"value": "10"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Application Details",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Id",
+										"value": "{{user_id}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/applications/{{app_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"applications",
+										"{{app_id}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Withdraw Application",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Id",
+										"value": "{{user_id}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/applications/{{app_id}}/withdraw",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"applications",
+										"{{app_id}}",
+										"withdraw"
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Admin - Jobs",
+					"item": [
+						{
+							"name": "Get All Jobs (Admin)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Role",
+										"value": "ADMIN"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/admin/jobs?page=0&size=10&sortBy=createdAt&sortDir=DESC",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"jobs"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "0"
+										},
+										{
+											"key": "size",
+											"value": "10"
+										},
+										{
+											"key": "sortBy",
+											"value": "createdAt"
+										},
+										{
+											"key": "sortDir",
+											"value": "DESC"
+										},
+										{
+											"key": "isActive",
+											"value": "true",
+											"disabled": true
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Job Details (Admin)",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Role",
+										"value": "ADMIN"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/admin/jobs/{{job_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"jobs",
+										"{{job_id}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Create Job Posting",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Role",
+										"value": "ADMIN"
+									},
+									{
+										"key": "X-User-Id",
+										"value": "admin123"
+									}
+								],
+								"body": {
+									"mode": "json",
+									"json": {
+										"title": "Senior Java Developer",
+										"department": "Engineering",
+										"location": "Remote",
+										"jobType": "FULL_TIME",
+										"experienceLevel": "SENIOR",
+										"description": "Detailed job description...",
+										"requirements": "Java, Spring Boot, AWS",
+										"responsibilities": "Lead development...",
+										"salaryMin": 1500000,
+										"salaryMax": 2500000,
+										"salaryCurrency": "INR",
+										"applicationDeadline": "2026-12-31T23:59:59",
+										"isActive": true
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/admin/jobs",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"jobs"
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Job Posting",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Role",
+										"value": "ADMIN"
+									}
+								],
+								"body": {
+									"mode": "json",
+									"json": {
+										"title": "Updated Job Title",
+										"department": "Engineering",
+										"location": "Hybrid"
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/admin/jobs/{{job_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"jobs",
+										"{{job_id}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Set Job Status (Explicit)",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Role",
+										"value": "ADMIN"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/admin/jobs/{{job_id}}/status?active=true",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"jobs",
+										"{{job_id}}",
+										"status"
+									],
+									"query": [
+										{
+											"key": "active",
+											"value": "true"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Toggle Job Status",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Role",
+										"value": "ADMIN"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/admin/jobs/{{job_id}}/status",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"jobs",
+										"{{job_id}}",
+										"status"
+									]
+								}
+							}
+						},
+						{
+							"name": "Delete Job Posting",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Role",
+										"value": "ADMIN"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/admin/jobs/{{job_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"jobs",
+										"{{job_id}}"
+									]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Admin - Applications",
+					"item": [
+						{
+							"name": "Get All Applications",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Role",
+										"value": "ADMIN"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/admin/applications?status=APPLIED&searchTerm=John",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"applications"
+									],
+									"query": [
+										{
+											"key": "status",
+											"value": "APPLIED"
+										},
+										{
+											"key": "searchTerm",
+											"value": "John"
+										}
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Applications By Job",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Role",
+										"value": "ADMIN"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/admin/applications/job/{{job_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"applications",
+										"job",
+										"{{job_id}}"
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Application Stats",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Role",
+										"value": "ADMIN"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/admin/applications/stats",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"applications",
+										"stats"
+									]
+								}
+							}
+						},
+						{
+							"name": "Update Application Status",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "X-Request-Source",
+										"value": "api-gateway"
+									},
+									{
+										"key": "X-User-Role",
+										"value": "ADMIN"
+									}
+								],
+								"body": {
+									"mode": "json",
+									"json": {
+										"status": "INTERVIEW_SCHEDULED",
+										"adminNotes": "Shortlisted for next round",
+										"interviewScheduledAt": "2026-04-15T10:00:00"
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/admin/applications/{{app_id}}/status?status=SHORTLISTED",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"applications",
+										"{{app_id}}",
+										"status"
+									],
+									"query": [
+										{
+											"key": "status",
+											"value": "SHORTLISTED",
+											"description": "Optional if body is provided"
+										}
+									]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Support Tickets",
+			"item": [
+				{
+					"name": "Create Ticket",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Request-Source",
+								"value": "api-gateway"
+							},
+							{
+								"key": "X-User-Id",
+								"value": "{{user_id}}"
+							}
+						],
+						"body": {
+							"mode": "json",
+							"json": {
+								"title": "Problem with booking",
+								"description": "I cannot complete my payment...",
+								"category": "BOOKING",
+								"priority": "HIGH"
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/customer/tickets",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customer",
+								"tickets"
+							]
+						}
+					}
+				},
+				{
+					"name": "My Tickets",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Request-Source",
+								"value": "api-gateway"
+							},
+							{
+								"key": "X-User-Id",
+								"value": "{{user_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/customer/tickets/my-tickets",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customer",
+								"tickets",
+								"my-tickets"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Ticket Details",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Request-Source",
+								"value": "api-gateway"
+							},
+							{
+								"key": "X-User-Id",
+								"value": "{{user_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/customer/tickets/{{ticket_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customer",
+								"tickets",
+								"{{ticket_id}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Add Message (Conversation)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Request-Source",
+								"value": "api-gateway"
+							},
+							{
+								"key": "X-User-Id",
+								"value": "{{user_id}}"
+							}
+						],
+						"body": {
+							"mode": "json",
+							"json": {
+								"ticketId": "{{ticket_id}}",
+								"message": "Any update on this?",
+								"isInternal": false
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/customer/conversations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customer",
+								"conversations"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Knowledge Base",
+			"item": [
+				{
+					"name": "Get All Articles",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Request-Source",
+								"value": "api-gateway"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/customer/knowledge-base?page=0&size=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customer",
+								"knowledge-base"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "10"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Search Articles",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Request-Source",
+								"value": "api-gateway"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/customer/knowledge-base/search?query=refund",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customer",
+								"knowledge-base",
+								"search"
+							],
+							"query": [
+								{
+									"key": "query",
+									"value": "refund"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "AI Chatbot",
+			"item": [
+				{
+					"name": "Chat with Bot",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Request-Source",
+								"value": "api-gateway"
+							}
+						],
+						"body": {
+							"mode": "json",
+							"json": {
+								"message": "Hi, I need help with my tour planning",
+								"userId": "{{user_id}}",
+								"context": "GENERAL"
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/customer/chatbot/chat",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"customer",
+								"chatbot",
+								"chat"
+							]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8086"
+		},
+		{
+			"key": "job_id",
+			"value": ""
+		},
+		{
+			"key": "app_id",
+			"value": ""
+		},
+		{
+			"key": "ticket_id",
+			"value": ""
+		},
+		{
+			"key": "user_id",
+			"value": "user123"
+		}
+	]
+}

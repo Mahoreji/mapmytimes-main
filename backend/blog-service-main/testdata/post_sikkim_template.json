@@ -1,0 +1,50 @@
+{
+  "title": "Sikkim Travel Guide 2026",
+  "content": "Legacy content for backward compatibility",
+  "slug": "REPLACE_SLUG",
+  "excerpt": "Complete Sikkim guide with blocks + images.",
+  "readingTime": 10,
+  "featuredImage": { "url": "", "alt": "Sikkim", "caption": "Sikkim cover" },
+  "categories": ["sikkim", "india", "himalayas"],
+  "tags": ["gangtok", "lachung", "yumthang", "nathula"],
+  "contentBlocks": [
+    {
+      "id": "blk-1",
+      "type": "imageBulletSection",
+      "title": "Top Experiences in Sikkim",
+      "image": { "url": "", "alt": "Sikkim views", "caption": "Highlights" },
+      "description": "High-signal things to do.",
+      "bullets": [
+        "Gangtok cafes + MG Marg",
+        "Nathula Pass day trip",
+        "Lachung + Yumthang Valley",
+        "Local food + monasteries"
+      ]
+    }
+  ],
+  "tableOfContents": [{ "title": "Top Experiences in Sikkim", "slug": "top-experiences" }],
+  "travelMeta": {
+    "destination": "Sikkim",
+    "country": "India",
+    "state": "Sikkim",
+    "city": "Gangtok",
+    "bestSeason": "Mar-Jun, Oct-Dec",
+    "budgetRange": "INR 20000-60000",
+    "travelType": ["Mountains", "Nature", "Roadtrip"],
+    "idealDuration": "4-7 days",
+    "difficulty": "Moderate",
+    "familyFriendly": true
+  },
+  "seo": {
+    "metaTitle": "Sikkim Travel Guide 2026",
+    "metaDescription": "Block-based Sikkim guide with itinerary, budget, and tips.",
+    "keywords": ["sikkim", "gangtok", "lachung", "yumthang"]
+  },
+  "visibility": "PUBLIC",
+  "language": "en",
+  "allowComments": true,
+  "allowLikes": true,
+  "isFeatured": true,
+  "isTrending": false
+}
+

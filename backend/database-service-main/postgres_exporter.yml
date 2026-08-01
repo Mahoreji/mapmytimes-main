@@ -1,0 +1,14 @@
+---
+# PostgreSQL Exporter Configuration
+# This file silences the "no such file or directory" warning and provides a valid schema.
+# See: https://github.com/prometheus-community/postgres_exporter#configuration-file
+
+collector:
+  # Enable key collectors
+  pg_stat_statements: true
+  pg_stat_user_tables: true
+  pg_statio_user_tables: true
+
+# Monitoring for mapmytour_prod
+target_databases:
+  - mapmytour_prod

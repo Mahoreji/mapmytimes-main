@@ -1,10 +1,49 @@
 HELP.md
 .DS_Store
 *.tsbuildinfo
+
+# ============ ENV & SECRETS (MANDATORY GLOBAL IGNORE) ============
+.env
+.env.*
+!.env.example
+!.env.production
+!.env.*.example
+*.pem
+*.key
+service.pid
+*.pid
+
+# ============ DATABASE FILES ============
+*.db
+*.sqlite
+*.sqlite3
+postgres/data/
+redis/data/
+
+# ============ JAVA / MAVEN / SPRING ============
 target/
+build/
+!.mvn/wrapper/maven-wrapper.properties
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+*.jar
+*.war
+*.ear
+*.class
+
+# ============ NODE / JS (if any microservice uses) ============
+node_modules/
+package-lock.json
+!frontend/package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ============ GO / GOLANG (notification service) ============
+bin/
+tmp_server/
+server/
+notification-service-main/notification.db
 
 ### STS ###
 .apt_generated
@@ -37,3 +76,12 @@ build/
 logs/
 
 src/main/resources/application-local.properties
+src/main/resources/application.properties.bak
+*.bak
+*.backup
+*.tmp
+*.swp
+
+# ============ LOGS (anywhere - directories AND standalone .log files) ============
+*.log
+*.log.*

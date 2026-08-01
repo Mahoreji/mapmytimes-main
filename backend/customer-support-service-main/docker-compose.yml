@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "127.0.0.1:8086:8086"  # Bind only to localhost for security
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=mapmytour_db
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mapmytour_db
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - mapmytour-network
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "127.0.0.1:5432:5432"  # Bind only to localhost for security
+    environment:
+      - POSTGRES_DB=mapmytour_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mapmytour-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "127.0.0.1:6379:6379"  # Bind only to localhost for security
+    networks:
+      - mapmytour-network
+
+networks:
+  mapmytour-network:
+    driver: bridge
+
+volumes:
+  postgres_data:

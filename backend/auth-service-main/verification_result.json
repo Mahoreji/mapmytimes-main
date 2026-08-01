@@ -1,0 +1,40 @@
+{
+  "success": true,
+  "statusCode": 200,
+  "message": "Incoming connection requests and notifications retrieved",
+  "data": [
+    {
+      "id": "e62ddc14-7288-4360-a93c-b30f76779052",
+      "type": "SOCIAL_LIKE",
+      "message": "Someone liked your post from test script",
+      "createdAt": "2026-04-08T18:19:52.249071",
+      "actionUrl": null,
+      "data": {
+        "postId": "post-123",
+        "groupId": null,
+        "messageId": null,
+        "content": null,
+        "userName": "Someone",
+        "userAvatar": null,
+        "actionUserId": "system-test"
+      }
+    },
+    {
+      "id": "a9be0da5-8572-4f6f-8999-ca8bc34d5a6e",
+      "type": "CONNECTION_REQUEST",
+      "message": "Tejas Banait sent you a connection request",
+      "createdAt": "2026-03-30T09:54:51.706619",
+      "actionUrl": null,
+      "data": {
+        "postId": null,
+        "groupId": null,
+        "messageId": null,
+        "content": null,
+        "userName": "Tejas Banait",
+        "userAvatar": "https://mapmytour-bucket-prod.s3.ap-south-1.amazonaws.com/avatars/20260320_101606_a9bc26d2.jpg",
+        "actionUserId": "231989d6-6752-4842-b00a-edab7da2f4ca"
+      }
+    }
+  ],
+  "errors": null
+}

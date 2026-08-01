@@ -1,0 +1,41 @@
+# =============================================================================
+# .dockerignore
+# =============================================================================
+# Ignore unnecessary files when building Docker image
+
+.git
+.gitignore
+README.md
+Dockerfile
+../docker-compose.yml
+.env.example
+.env.example
+
+# Build artifacts
+target/
+*.jar
+*.war
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Test files
+src/test/
+
+# Documentation
+docs/

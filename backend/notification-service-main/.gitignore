@@ -1,0 +1,8 @@
+/logs
+*.log
+.env
+*.env
+bin/
+server
+tmp_server
+service.log

@@ -1,0 +1,2 @@
+Admin-only static file - Wed Dec 10 21:54:29 IST 2025
+This file is only accessible to ADMIN users

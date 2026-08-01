@@ -1,0 +1,43 @@
+# Backup Manager Python Dependencies
+# For monitoring, alerting, and reporting
+
+# HTTP requests for webhooks and API calls
+requests==2.31.0
+
+# Email notifications
+# smtplib-starttls==1.0
+
+# JSON handling and data processing
+simplejson==3.19.1
+
+# Date and time handling
+python-dateutil==2.8.2
+
+# Configuration file parsing
+configparser==6.0.0
+
+# Template engine for reports
+jinja2==3.1.2
+
+# CSV processing
+pandas>=2.1.0,<3.0
+
+
+# System monitoring
+psutil==5.9.5
+
+# Scheduler for backup orchestration
+schedule==1.2.0
+
+# Database connections for health checks
+psycopg2-binary==2.9.7
+redis==4.6.0
+
+# File compression and archiving
+py7zr==0.20.6
+
+# Encryption for sensitive data
+cryptography==41.0.3
+
+# Metrics and monitoring
+prometheus-client==0.17.1

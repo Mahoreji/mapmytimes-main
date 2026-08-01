@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    
+    <!-- Console Appender with Correlation ID -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{correlationId:-N/A}] [%X{traceId:-N/A}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- File Appender with Correlation ID -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>logs/application.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>logs/application-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>50MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{correlationId:-N/A}] [%X{traceId:-N/A}] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+    
+    <!-- Root Logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+    
+    <!-- Application Logger -->
+    <logger name="in.mapmytour" level="INFO"/>
+    
+    <!-- Spring Framework -->
+    <logger name="org.springframework" level="WARN"/>
+    
+    <!-- Hibernate -->
+    <logger name="org.hibernate" level="WARN"/>
+    
+    <!-- Kafka: suppress internal reconnection WARN flood from NetworkClient.
+         These fire every ~1s when Kafka is unavailable and are not actionable
+         — our AuthEventProducer already logs a single WARN on publish failure.
+         Keep ERROR level so real broker errors still surface. -->
+    <logger name="org.apache.kafka" level="ERROR"/>
+    <!-- Keep Spring Kafka's LoggingProducerListener at WARN so the
+         "Exception thrown when sending" line with payload info is still visible -->
+    <logger name="org.springframework.kafka.support.LoggingProducerListener" level="WARN"/>
+    <!-- Suppress the verbose ProducerConfig/ConsumerConfig values dump -->
+    <logger name="org.apache.kafka.clients.producer.ProducerConfig" level="ERROR"/>
+    <logger name="org.apache.kafka.clients.consumer.ConsumerConfig" level="ERROR"/>
+    <!-- Keep Kafka version/startup info -->
+    <logger name="org.apache.kafka.common.utils.AppInfoParser" level="INFO"/>
+</configuration>

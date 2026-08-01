@@ -1,0 +1,22 @@
+███╗   ███╗ █████╗ ██████╗ ███╗   ███╗██╗   ██╗████████╗ ██████╗ ██╗   ██╗██████╗
+████╗ ████║██╔══██╗██╔══██╗████╗ ████║╚██╗ ██╔╝╚══██╔══╝██╔═══██╗██║   ██║██╔══██╗
+██╔████╔██║███████║██████╔╝██╔████╔██║ ╚████╔╝    ██║   ██║   ██║██║   ██║██████╔╝
+██║╚██╔╝██║██╔══██║██╔═══╝ ██║╚██╔╝██║  ╚██╔╝     ██║   ██║   ██║██║   ██║██╔══██╗
+██║ ╚═╝ ██║██║  ██║██║     ██║ ╚═╝ ██║   ██║      ██║   ╚██████╔╝╚██████╔╝██║  ██║
+╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝     ╚═╝   ╚═╝      ╚═╝    ╚═════╝  ╚═════╝ ╚═╝  ╚═╝
+
+${AnsiColor.BRIGHT_BLUE}╔══════════════════════════════════════════════════════════════════════════════════╗
+║                    📝  Blog Service - Content Management & Publishing  ✍️                     ║
+║                                                                                  ║
+║  ${AnsiColor.BRIGHT_GREEN}📝 Blog Posts    ✍️  Content Creation    📊 Content Analytics${AnsiColor.BRIGHT_BLUE}  ║
+║  ${AnsiColor.BRIGHT_GREEN}🔍 Search & Discovery    📂 Categories    💬 Comments & Engagement${AnsiColor.BRIGHT_BLUE}  ║
+║                                                                                  ║
+║  ${AnsiColor.BRIGHT_YELLOW}Version: ${application.version:1.0.0}               Environment: ${spring.profiles.active:local}${AnsiColor.BRIGHT_BLUE}                    ║
+║  ${AnsiColor.BRIGHT_CYAN}Port: ${server.port:8090}                     Database: PostgreSQL + Redis${AnsiColor.BRIGHT_BLUE}            ║
+║                                                                                  ║
+║  ${AnsiColor.BRIGHT_MAGENTA}🎯 Engaging blog content management and publishing platform! 🚀${AnsiColor.BRIGHT_BLUE}          ║
+╚══════════════════════════════════════════════════════════════════════════════════╝${AnsiColor.DEFAULT}
+
+${AnsiColor.BRIGHT_GREEN}🎯 Features Active: ${AnsiColor.BRIGHT_YELLOW}Blog Posts • Content Management • Analytics • Comments${AnsiColor.DEFAULT}
+${AnsiColor.BRIGHT_CYAN}🔗 Health Check: ${AnsiColor.BRIGHT_WHITE}http://localhost:${server.port:8090}/actuator/health${AnsiColor.DEFAULT}
+${AnsiColor.BRIGHT_MAGENTA}📚 API Docs: ${AnsiColor.BRIGHT_WHITE}http://localhost:${server.port:8090}/swagger-ui.html${AnsiColor.DEFAULT}

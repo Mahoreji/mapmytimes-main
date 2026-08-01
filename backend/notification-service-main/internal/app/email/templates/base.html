@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Map My Tour</title>
+</head>
+<body style="margin:0; padding:0; background:#f8fafc; font-family:'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#1e293b; -webkit-font-smoothing:antialiased;">
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fafc; padding:40px 15px;">
+  <tr>
+    <td align="center">
+
+      <!-- MAIN CONTAINER -->
+      <table width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px; background:#ffffff; border-radius:28px; overflow:hidden; box-shadow:0 25px 50px -12px rgba(15,23,42,0.15);">
+
+        {{ template "content" . }}
+
+        <!-- FOOTER SECTION -->
+        <tr>
+          <td align="center" style="background:#f8fafc; padding:45px 40px; border-top:1px solid #f1f5f9; text-align:center;">
+            
+            
+            <div style="margin-bottom:24px;">
+              <a href="#" style="display:inline-block; margin:0 8px; color:#64748b; text-decoration:none; font-size:13px; font-weight:700;">Facebook</a>
+              <a href="#" style="display:inline-block; margin:0 8px; color:#64748b; text-decoration:none; font-size:13px; font-weight:700;">Instagram</a>
+              <a href="#" style="display:inline-block; margin:0 8px; color:#64748b; text-decoration:none; font-size:13px; font-weight:700;">Twitter</a>
+            </div>
+
+            <p style="margin:0 0 10px; font-size:13px; color:#94a3b8; font-weight:600;">
+              © {{ .Year }} Map My Tour. Travel World with Class.
+            </p>
+            <p style="margin:0; font-size:12px; color:#cbd5e1; line-height:1.6;">
+              54, DDA Flats Rd, DDA Flats Kalkaji, Block L 1,<br>Kalkaji, New Delhi, Delhi 110019<br>
+              You are receiving this because you booked with Map My Tour.
+            </p>
+
+            <div style="margin-top:24px; padding-top:20px; border-top:1px solid #eef2f7;">
+              <a href="#" style="color:#64748b; text-decoration:underline; font-size:12px;">Unsubscribe</a>
+              <span style="color:#cbd5e1; margin:0 8px;">•</span>
+              <a href="#" style="color:#64748b; text-decoration:underline; font-size:12px;">Privacy Policy</a>
+            </div>
+          </td>
+        </tr>
+
+      </table>
+
+      <!-- POST-FOOTER -->
+      <table width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:600px; margin-top:24px;">
+        <tr>
+          <td align="center" style="font-size:11px; color:#94a3b8; text-align:center; padding:0 20px;">
+            This email was sent by Map My Tour. If you have questions, please visit our help center.
+          </td>
+        </tr>
+      </table>
+
+    </td>
+  </tr>
+</table>
+
+</body>
+</html>
