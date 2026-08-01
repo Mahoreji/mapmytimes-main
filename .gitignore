@@ -85,3 +85,38 @@ src/main/resources/application.properties.bak
 # ============ LOGS (anywhere - directories AND standalone .log files) ============
 *.log
 *.log.*
+
+# ============ FLUTTER / DART (mobile/ sub-package) ============
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+.symlinks/
+coverage/
+
+# iOS
+ios/Pods/
+ios/Runner.xcworkspace/
+ios/Runner.xcodeproj/project.xcworkspace/
+ios/Runner.xcodeproj/xcuserdata/
+*.xcuserdata/
+
+# Android
+android/.gradle/
+android/app/build/
+android/local.properties
+android/.idea/
+*.jks
+*.keystore
+
+# IDE / OS duplicates for Flutter-specific
+mobile/.idea/
+mobile/android/.gradle/
+mobile/build/
+mobile/ios/Pods/
+
+# pubspec.lock (opt-in per team; default ignore for app projects but track for libraries)
+# pubspec.lock
