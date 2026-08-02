@@ -109,31 +109,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.top + 2)),
-          SliverToBoxAdapter(
-            child: Container(
-              decoration: const BoxDecoration(
-                color: MmtColors.news50,
-                border: Border(bottom: BorderSide(color: MmtColors.ink950, width: 2)),
-              ),
-              padding: const EdgeInsets.fromLTRB(18, 20, 18, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SectionEyebrow(t.home.heroEyebrow),
-                  const SizedBox(height: 12),
-                  Text(t.home.heroTitle,
-                      style: GoogleFonts.archivoBlack(
-                        fontSize: 30,
-                        height: 1.02,
-                        color: dark ? Colors.white : MmtColors.ink950,
-                        letterSpacing: -0.4,
-                      ),),
-                  const SizedBox(height: 10),
-                  Text(t.home.heroBody, style: TextStyle(fontSize: 13, color: dark ? MmtColors.ink600 : MmtColors.ink700, height: 1.6, fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ),
-          ),
           // Breaking News Banner (uses first trending or featured post)
           trending.when(
             loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),

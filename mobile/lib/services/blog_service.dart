@@ -48,6 +48,14 @@ class BlogService {
     return parts.isEmpty ? '' : '?${parts.join('&')}';
   }
 
+  static Map<String, String> _sortParts(String sort) {
+    if (sort.isEmpty) return const {'sortBy': 'createdAt', 'sortDirection': 'DESC'};
+    final dir = sort.startsWith('-') ? 'DESC' : 'ASC';
+    final field = sort.startsWith('-') ? sort.substring(1) : sort;
+    if (field.isEmpty) return const {'sortBy': 'createdAt', 'sortDirection': 'DESC'};
+    return {'sortBy': field, 'sortDirection': dir};
+  }
+
   // ---------------------------------------------------------------------------
   // Helpers: unwrap envelope APIResponse<PaginatedResponse<T>> etc
   // ---------------------------------------------------------------------------
@@ -103,10 +111,11 @@ class BlogService {
     String? postType,
     bool? isFeatured,
     bool? isTrending,
-    String? authorId,
+    String? userId,
     String? language,
     String sort = '-publishedAt',
   }) async {
+    final s = _sortParts(sort);
     final q = _query({
       'page': page,
       'size': size,
@@ -117,9 +126,10 @@ class BlogService {
       if (postType != null) 'postType': postType,
       if (isFeatured != null) 'isFeatured': isFeatured,
       if (isTrending != null) 'isTrending': isTrending,
-      if (authorId != null) 'authorId': authorId,
+      if (userId != null) 'userId': userId,
       if (language != null) 'language': language,
-      'sort': sort,
+      'sortBy': s['sortBy'],
+      'sortDirection': s['sortDirection'],
     });
     final r = await dio.get('$postsV1/search$q');
     final env = _unwrapEnvelope(
@@ -158,7 +168,9 @@ class BlogService {
     String? category,
     String? sectionSlug,
     String? tag,
+    String sort = '-publishedAt',
   }) async {
+    final s = _sortParts(sort);
     final q = _query({
       'keyword': keyword,
       'page': page,
@@ -167,6 +179,8 @@ class BlogService {
       if (category != null) 'category': category,
       if (sectionSlug != null) 'sectionSlug': sectionSlug,
       if (tag != null) 'tag': tag,
+      'sortBy': s['sortBy'],
+      'sortDirection': s['sortDirection'],
     });
     final r = await dio.get('$postsV1/search$q');
     final env = _unwrapEnvelope(
