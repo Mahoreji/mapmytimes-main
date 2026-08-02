@@ -4,12 +4,14 @@
 // =============================================================================
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/env.dart';
 import '../models/blog_models.dart';
 
 class TokenStore {
-  TokenStore(this.prefs(this._prefs);
+  TokenStore(this._prefs);
   final SharedPreferences _prefs;
   static const _kAccessToken = 'mmt.auth.accessToken';
   static const _kRefreshToken = 'mmt.auth.refreshToken';
@@ -128,10 +130,18 @@ Dio createDio({String? base, Duration connect = const Duration(seconds: 15), Map
     sendTimeout: const Duration(seconds: 25),
     headers: <String, dynamic>{
       'Accept': 'application/json',
-      'X-Source': 'mapmytimes-mobile',
+      if (!kIsWeb) 'X-Source': 'mapmytimes-mobile',
       if (extra != null) ...extra,
     },
-  ));
+  ),);
+  if (kIsWeb) {
+    d.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        options.headers.removeWhere((k, _) => k.toUpperCase().startsWith('X-'));
+        return handler.next(options);
+      },
+    ),);
+  }
   if (Env.isDebug) {
     try {
       d.interceptors.add(PrettyDioLogger(
@@ -140,7 +150,7 @@ Dio createDio({String? base, Duration connect = const Duration(seconds: 15), Map
         error: true,
         compact: true,
         maxWidth: 120,
-      ));
+      ),);
     } catch (_) {}
   }
   return d;

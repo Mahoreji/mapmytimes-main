@@ -1,6 +1,8 @@
 // About, Contact, Careers, Login, Videos, Menu, Dashboard, Search, CareerApply screens
 // ALL INTEGRATED with Riverpod backend providers
 import 'dart:async';
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -19,6 +21,358 @@ import '../models/notification_models.dart';
 import '../providers/index.dart';
 
 // ---------------------------------------------------------------------------
+// SHARED: SECTIONS MODEL (8 News Sections from reference screenshot)
+// ---------------------------------------------------------------------------
+class MmtSection {
+  final String name;
+  final String slug;
+  final String desc;
+  final FaIconData icon;
+  final Color accent;
+  const MmtSection({required this.name, required this.slug, required this.desc, required this.icon, required this.accent});
+}
+
+const List<MmtSection> kMmtSections = [
+  MmtSection(name: 'INDIA', slug: 'india', desc: 'Nationwide coverage & top stories', icon: FontAwesomeIcons.flag, accent: Color(0xFFE11D48)),
+  MmtSection(name: 'WORLD', slug: 'world', desc: 'Global news & international updates', icon: FontAwesomeIcons.globe, accent: Color(0xFF0369A1)),
+  MmtSection(name: 'BUSINESS', slug: 'business', desc: 'Markets, finance, economy & trade', icon: FontAwesomeIcons.briefcase, accent: Color(0xFF7C2D12)),
+  MmtSection(name: 'TECH', slug: 'tech', desc: 'Technology, gadgets & innovation', icon: FontAwesomeIcons.microchip, accent: Color(0xFF4338CA)),
+  MmtSection(name: 'SPORTS', slug: 'sports', desc: 'Cricket, football, athletics & more', icon: FontAwesomeIcons.futbol, accent: Color(0xFF166534)),
+  MmtSection(name: 'POLITICS', slug: 'politics', desc: 'Parliament, elections & governance', icon: FontAwesomeIcons.landmark, accent: Color(0xFF9A3412)),
+  MmtSection(name: 'CULTURE', slug: 'culture', desc: 'Heritage, festivals, arts & travel', icon: FontAwesomeIcons.palette, accent: Color(0xFF9D174D)),
+  MmtSection(name: 'OPINION', slug: 'opinion', desc: 'Columns, editorials & guest views', icon: FontAwesomeIcons.commentDots, accent: Color(0xFF1E293B)),
+];
+
+// Helper: Shared Section Tile widget (used in Explore + Home)
+class SectionTile extends StatelessWidget {
+  final MmtSection s;
+  final bool dark;
+  const SectionTile({super.key, required this.s, required this.dark});
+  @override
+  Widget build(BuildContext ctx) {
+    return InkWell(
+      onTap: () {
+        ctx.push('/section/${s.slug.toLowerCase()}');
+      },
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: dark ? Colors.white24 : MmtColors.ink200, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              offset: const Offset(0, 2),
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Stack(
+          children: [
+            BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(color: Colors.transparent),
+            ),
+            Container(
+              color: dark ? Colors.white.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.72),
+              padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      FaIcon(s.icon, size: 20, color: dark ? Colors.white : MmtColors.ink950),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          s.name,
+                          style: GoogleFonts.getFont(
+                            'Archivo Black',
+                            color: dark ? Colors.white : MmtColors.ink950,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.3,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    s.desc,
+                    style: TextStyle(
+                      fontSize: 11,
+                      height: 1.3,
+                      fontWeight: FontWeight.w500,
+                      color: (dark ? Colors.white : MmtColors.ink950).withValues(alpha: 0.62),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionTile extends StatelessWidget {
+  final MmtSection s;
+  final bool dark;
+  const _SectionTile({required this.s, required this.dark});
+  @override
+  Widget build(BuildContext ctx) => SectionTile(s: s, dark: dark);
+}
+
+// ---------------------------------------------------------------------------
+// EXPLORE — ALL CATEGORIES (route /categories)
+// CNN-style large colorful category grid — name, postCount, accent color tile, description
+// ---------------------------------------------------------------------------
+class ExploreCategoriesScreen extends ConsumerStatefulWidget {
+  const ExploreCategoriesScreen({super.key});
+  @override
+  ConsumerState<ExploreCategoriesScreen> createState() => _ExploreCategoriesScreenState();
+}
+class _ExploreCategoriesScreenState extends ConsumerState<ExploreCategoriesScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  static const List<Color> _palette = [
+    Color(0xFFE31E24), Color(0xFF0F766E), Color(0xFF1D4ED8), Color(0xFFB91C1C),
+    Color(0xFF7C2D12), Color(0xFF6D28D9), Color(0xFFBE185D), Color(0xFF0F172A),
+    Color(0xFF365314), Color(0xFF9A3412), Color(0xFF155E75), Color(0xFF4C1D95),
+  ];
+
+  @override
+  Widget build(BuildContext ctx) {
+    super.build(ctx);
+    final t = Dict.of(ctx);
+    final dark = Theme.of(ctx).brightness == Brightness.dark;
+    final catsAsync = ref.watch(categoriesProvider);
+
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(ctx).padding.top + 12)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 18),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Explore',
+                        style: GoogleFonts.getFont(
+                          'Archivo Black',
+                          fontSize: 28,
+                          color: dark ? Colors.white : MmtColors.ink950,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Sections, categories & stories — discover everything',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: dark ? Colors.white60 : MmtColors.ink800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  height: 44, width: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: dark ? Colors.white24 : MmtColors.ink200, width: 1),
+                    color: dark ? MmtColors.ink850 : Colors.white,
+                  ),
+                  alignment: Alignment.center,
+                  child: FaIcon(FontAwesomeIcons.compass, size: 18, color: MmtColors.news),
+                ),
+              ],
+            ),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: Container(height: 2, color: MmtColors.ink950, margin: const EdgeInsets.fromLTRB(20, 0, 20, 0)),
+        ),
+        // ---- SECTIONS ----
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
+            child: Row(
+              children: [
+                SectionEyebrow('Top Sections'),
+                const Spacer(),
+                Text('${kMmtSections.length} sections', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: dark ? Colors.white54 : MmtColors.ink800, letterSpacing: 0.2)),
+              ],
+            ),
+          ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.32),
+            delegate: SliverChildBuilderDelegate(
+              (_, i) => _SectionTile(s: kMmtSections[i], dark: dark),
+              childCount: kMmtSections.length,
+            ),
+          ),
+        ),
+        // ---- CATEGORIES ----
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
+            child: Row(
+              children: [
+                SectionEyebrow('Categories'),
+                const Spacer(),
+                Text('${catsAsync.value?.length ?? '—'} topics', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: dark ? Colors.white54 : MmtColors.ink800, letterSpacing: 0.2)),
+              ],
+            ),
+          ),
+        ),
+        catsAsync.when(
+          loading: () => SliverPadding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 2.0),
+              delegate: SliverChildBuilderDelegate(
+                (_, i) => Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: MmtColors.ink700, width: 2),
+                    color: (dark ? MmtColors.ink850 : MmtColors.ink100).withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                ),
+                childCount: 6,
+              ),
+            ),
+          ),
+          error: (e, _) => SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: _ErrorCard(
+                msg: e.toString(),
+                retry: () => ref.invalidate(categoriesProvider),
+                t: t,
+              ),
+            ),
+          ),
+          data: (list) {
+            if (list.isEmpty) {
+              return SliverToBoxAdapter(
+                child: Padding(padding: const EdgeInsets.all(30), child: Center(child: Text(t.noStoriesYet))),
+              );
+            }
+            final categories = list;
+            return SliverPadding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 2.0),
+                delegate: SliverChildBuilderDelegate(
+                  (BuildContext _, int i) {
+                    final c = categories[i];
+                    final descText = (c.description != null && c.description!.trim().isNotEmpty)
+                        ? c.description!
+                        : '${c.postCount ?? 0} stories';
+                    return InkWell(
+                      onTap: () => ctx.push('/category/${c.slug}'),
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: dark ? Colors.white24 : MmtColors.ink200, width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.06),
+                              offset: const Offset(0, 2),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.hardEdge,
+                        child: Stack(
+                          children: [
+                            BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                              child: Container(color: Colors.transparent),
+                            ),
+                            Container(
+                              color: dark ? Colors.white.withValues(alpha: 0.06) : Colors.white.withValues(alpha: 0.72),
+                              padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      FaIcon(FontAwesomeIcons.hashtag, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          c.name,
+                                          style: GoogleFonts.getFont(
+                                            'Archivo Black',
+                                            color: dark ? Colors.white : MmtColors.ink950,
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.3,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    descText,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      height: 1.3,
+                                      fontWeight: FontWeight.w500,
+                                      color: (dark ? Colors.white : MmtColors.ink950).withValues(alpha: 0.62),
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                  childCount: categories.length,
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // VIDEOS
 // ---------------------------------------------------------------------------
 class VideosScreen extends ConsumerStatefulWidget {
@@ -34,7 +388,7 @@ class _VideosScreenState extends ConsumerState<VideosScreen> with AutomaticKeepA
         height: h, width: w,
         decoration: BoxDecoration(
           border: Border.all(color: MmtColors.ink700, width: 2),
-          color: MmtColors.ink600.withOpacity(0.12),
+          color: MmtColors.ink600.withValues(alpha: 0.12),
         ),
       );
 
@@ -47,13 +401,30 @@ class _VideosScreenState extends ConsumerState<VideosScreen> with AutomaticKeepA
 
     return CustomScrollView(
       slivers: [
-        SliverAppBar(
-          pinned: true,
-          title: Text(t.videos),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(2),
-            child: Container(height: 2, color: MmtColors.ink950),
+        SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(ctx).padding.top + 12)),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 18),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    t.videos,
+                    style: GoogleFonts.getFont(
+                      'Archivo Black',
+                      fontSize: 28,
+                      color: dark ? Colors.white : MmtColors.ink950,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+        ),
+        SliverToBoxAdapter(
+          child: Container(height: 2, color: MmtColors.ink950, margin: const EdgeInsets.fromLTRB(20, 0, 20, 0)),
         ),
         videosAsync.when(
           loading: () => SliverToBoxAdapter(
@@ -123,70 +494,80 @@ class _VideoCard extends StatelessWidget {
     final date = p.publishedAt != null
         ? DateFormat('dd MMM').format(p.publishedAt!.toLocal())
         : '';
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border.fromBorderSide(BorderSide(color: MmtColors.ink950, width: 2)),
-        boxShadow: [BoxShadow(color: MmtColors.ink950, offset: Offset(4, 4))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Container(
-              decoration: BoxDecoration(
-                color: dark ? MmtColors.ink800 : MmtColors.chipBg,
-                image: p.cover.isNotEmpty
-                    ? DecorationImage(
-                        image: NetworkImage(p.cover),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
-              ),
-              child: const Center(
-                child: Icon(
-                  FontAwesomeIcons.solidCirclePlay,
-                  color: MmtColors.news,
-                  size: 42,
-                  shadows: [Shadow(color: Colors.black26, blurRadius: 8)],
+    return SizedBox(
+      height: 310,
+      child: Container(
+        decoration: BoxDecoration(
+          color: dark ? MmtColors.ink900 : Colors.white,
+          border: const Border.fromBorderSide(BorderSide(color: MmtColors.ink950, width: 2)),
+          boxShadow: const [BoxShadow(color: MmtColors.ink950, offset: Offset(4, 4))],
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: dark ? MmtColors.ink800 : MmtColors.chipBg,
+                  image: p.cover.isNotEmpty
+                      ? DecorationImage(
+                          image: NetworkImage(p.cover),
+                          fit: BoxFit.cover,
+                          onError: (_, __) {},
+                        )
+                      : null,
+                ),
+                child: const Center(
+                  child: FaIcon(
+                    FontAwesomeIcons.solidCirclePlay,
+                    color: MmtColors.news,
+                    size: 42,
+                  ),
                 ),
               ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  p.title,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.getFont(
-                    'Archivo Black',
-                    fontSize: 14,
-                    height: 1.2,
-                    fontWeight: FontWeight.w900,
-                    color: dark ? Colors.white : MmtColors.ink950,
-                  ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        p.title,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.getFont(
+                          'Archivo Black',
+                          fontSize: 13,
+                          height: 1.2,
+                          fontWeight: FontWeight.w900,
+                          color: dark ? Colors.white : MmtColors.ink950,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      [
+                        if (p.author?.name.isNotEmpty ?? false) p.author!.name,
+                        if (date.isNotEmpty) date,
+                        if ((p.viewCount ?? 0) > 0) '${p.viewCount} views',
+                      ].join('  ·  '),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: dark ? Colors.white54 : MmtColors.textFaint,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  [
-                    if (p.author?.name.isNotEmpty ?? false) p.author!.name,
-                    if (date.isNotEmpty) date,
-                    if ((p.viewCount ?? 0) > 0) '${p.viewCount} views',
-                  ].join('  ·  '),
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: dark ? Colors.white54 : MmtColors.textFaint,
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -206,8 +587,8 @@ class MenuScreen extends ConsumerWidget {
     final currentUser = authState.user;
     final isAuthed = authState.isAuthenticated;
 
-    final menuItems = <(IconData, String, String)>[
-      (FontAwesomeIcons.house, t.home, '/'),
+    final menuItems = <(FaIconData, String, String)>[
+      (FontAwesomeIcons.house, t.navHome, '/'),
       (FontAwesomeIcons.newspaper, t.news, '/news'),
       (FontAwesomeIcons.video, t.videos, '/videos'),
       (FontAwesomeIcons.magnifyingGlass, t.search, '/search'),
@@ -216,7 +597,7 @@ class MenuScreen extends ConsumerWidget {
       (FontAwesomeIcons.briefcase, t.careers, '/careers'),
     ];
 
-    final extraItems = <(IconData, String, String)>[
+    final extraItems = <(FaIconData, String, String)>[
       if (isAuthed) (FontAwesomeIcons.gaugeHigh, t.dashboard, '/dashboard'),
     ];
 
@@ -275,7 +656,7 @@ class MenuScreen extends ConsumerWidget {
                               ),
                               if ((currentUser?.email ?? '').isNotEmpty)
                                 Text(
-                                  currentUser!.email!,
+                                  currentUser!.email,
                                   style: GoogleFonts.inter(fontSize: 12, color: MmtColors.ink600),
                                 ),
                             ],
@@ -291,7 +672,7 @@ class MenuScreen extends ConsumerWidget {
                       onPressed: () async {
                         await ref.read(authControllerProvider.notifier).logout();
                       },
-                      icon: const Icon(FontAwesomeIcons.rightFromBracket, size: 16),
+                      icon: const FaIcon(FontAwesomeIcons.rightFromBracket, size: 16),
                       label: Text('${t.signIn} OUT'),
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: MmtColors.ink950, width: 2),
@@ -304,7 +685,7 @@ class MenuScreen extends ConsumerWidget {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () => ctx.push('/login'),
-                      icon: const Icon(FontAwesomeIcons.rightToBracket, size: 16),
+                      icon: const FaIcon(FontAwesomeIcons.rightToBracket, size: 16),
                       label: Text(t.signIn.toUpperCase()),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: MmtColors.news,
@@ -372,7 +753,7 @@ class MenuScreen extends ConsumerWidget {
 }
 
 class _MenuTile extends StatelessWidget {
-  final IconData ic;
+  final FaIconData ic;
   final String label;
   final String path;
   final bool dark;
@@ -383,7 +764,7 @@ class _MenuTile extends StatelessWidget {
   Widget build(BuildContext ctx) {
     return ListTile(
       dense: false,
-      leading: Icon(ic, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+      leading: FaIcon(ic, size: 18, color: dark ? Colors.white : MmtColors.ink950),
       title: Text(
         label,
         style: GoogleFonts.inter(
@@ -412,7 +793,7 @@ class _MenuTile extends StatelessWidget {
 }
 
 class _Social extends StatelessWidget {
-  final IconData icon;
+  final FaIconData icon;
   final String url;
   const _Social({required this.icon, required this.url});
   @override
@@ -430,7 +811,7 @@ class _Social extends StatelessWidget {
           border: Border.all(color: MmtColors.ink950, width: 2),
           color: dark ? MmtColors.ink900 : Colors.white,
         ),
-        child: Icon(icon, size: 17, color: dark ? Colors.white : MmtColors.ink950),
+        child: FaIcon(icon, size: 17, color: dark ? Colors.white : MmtColors.ink950),
       ),
     );
   }
@@ -476,7 +857,7 @@ class AboutScreen extends StatelessWidget {
     preferredSize: const Size.fromHeight(2),
     child: Container(height: 2, color: MmtColors.ink950),
   );
-  Widget _row(IconData icon, String label, String value, bool dark) {
+  Widget _row(FaIconData icon, String label, String value, bool dark) {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: MmtColors.ink950, width: 2),
@@ -484,7 +865,7 @@ class AboutScreen extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+          FaIcon(icon, size: 18, color: dark ? Colors.white : MmtColors.ink950),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -548,7 +929,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
     final t = Dict.of(context);
     if (_name.text.trim().isEmpty || _email.text.trim().isEmpty || _subject.text.trim().isEmpty || _msg.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: MmtColors.news700, content: Text('Please fill Name, Email, Subject and Message')),
+        const SnackBar(backgroundColor: MmtColors.news700, content: Text('Please fill Name, Email, Subject and Message')),
       );
       return;
     }
@@ -564,7 +945,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
         message: _msg.text.trim(),
         source: 'mapmytimes-mobile',
         preferredLanguage: lang.name,
-      ));
+      ),);
       if (mounted) {
         setState(() { _submitted = true; });
         _name.clear(); _email.clear(); _phone.clear(); _subject.clear(); _msg.clear();
@@ -612,7 +993,7 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
                 const Icon(Icons.check_circle, color: MmtColors.news),
                 const SizedBox(width: 10),
                 Expanded(child: Text(t.subscribeSuccess, style: const TextStyle(fontWeight: FontWeight.w700))),
-              ]),
+              ],),
             ),
           _field('Name', _name, hint: 'Your name'),
           const SizedBox(height: 14),
@@ -641,27 +1022,27 @@ class _ContactScreenState extends ConsumerState<ContactScreen> {
               children: [
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(FontAwesomeIcons.envelope),
+                  leading: const FaIcon(FontAwesomeIcons.envelope),
                   title: Text(t.contactNewsroom.toUpperCase(),
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w800, letterSpacing: 1, fontSize: 12, color: MmtColors.news)),
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w800, letterSpacing: 1, fontSize: 12, color: MmtColors.news),),
                   subtitle: Text(Env.contactEmail,
-                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: dark ? Colors.white : MmtColors.ink950)),
+                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: dark ? Colors.white : MmtColors.ink950),),
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(FontAwesomeIcons.phone),
+                  leading: const FaIcon(FontAwesomeIcons.phone),
                   title: Text('PHONE',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w800, letterSpacing: 1, fontSize: 12, color: MmtColors.news)),
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w800, letterSpacing: 1, fontSize: 12, color: MmtColors.news),),
                   subtitle: Text(Env.contactPhone,
-                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: dark ? Colors.white : MmtColors.ink950)),
+                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: dark ? Colors.white : MmtColors.ink950),),
                 ),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(FontAwesomeIcons.locationDot),
+                  leading: const FaIcon(FontAwesomeIcons.locationDot),
                   title: Text('ADDRESS',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w800, letterSpacing: 1, fontSize: 12, color: MmtColors.news)),
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w800, letterSpacing: 1, fontSize: 12, color: MmtColors.news),),
                   subtitle: Text('MAPMYTOUR LLP, India',
-                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: dark ? Colors.white : MmtColors.ink950)),
+                      style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: dark ? Colors.white : MmtColors.ink950),),
                 ),
               ],
             ),
@@ -822,7 +1203,7 @@ class _JobCard extends StatelessWidget {
           if ((job.location ?? '').isNotEmpty)
             Row(
               children: [
-                const Icon(FontAwesomeIcons.locationDot, size: 14, color: MmtColors.news),
+                const FaIcon(FontAwesomeIcons.locationDot, size: 14, color: MmtColors.news),
                 const SizedBox(width: 8),
                 Text(job.location!, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
               ],
@@ -831,7 +1212,7 @@ class _JobCard extends StatelessWidget {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(FontAwesomeIcons.layerGroup, size: 14, color: MmtColors.news),
+                const FaIcon(FontAwesomeIcons.layerGroup, size: 14, color: MmtColors.news),
                 const SizedBox(width: 8),
                 Text(job.experienceLevel!, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
               ],
@@ -1065,7 +1446,7 @@ class _CareerApplyScreenState extends ConsumerState<CareerApplyScreen> {
     final t = Dict.of(context);
     if (_name.text.trim().isEmpty || _email.text.trim().isEmpty || _phone.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: MmtColors.news700, content: Text('Please fill Name, Email and Phone')),
+        const SnackBar(backgroundColor: MmtColors.news700, content: Text('Please fill Name, Email and Phone')),
       );
       return;
     }
@@ -1082,7 +1463,7 @@ class _CareerApplyScreenState extends ConsumerState<CareerApplyScreen> {
         noticePeriod: _notice.text.trim().isEmpty ? null : _notice.text.trim(),
         linkedinUrl: _li.text.trim().isEmpty ? null : _li.text.trim(),
         portfolioUrl: _portfolio.text.trim().isEmpty ? null : _portfolio.text.trim(),
-      ));
+      ),);
       if (mounted) {
         if (resp != null) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1127,7 +1508,7 @@ class _CareerApplyScreenState extends ConsumerState<CareerApplyScreen> {
             decoration: BoxDecoration(border: Border.all(color: MmtColors.ink950, width: 2), color: MmtColors.news50),
             child: Row(
               children: [
-                const Icon(FontAwesomeIcons.briefcase, color: MmtColors.news),
+                const FaIcon(FontAwesomeIcons.briefcase, color: MmtColors.news),
                 const SizedBox(width: 12),
                 Expanded(child: Text('Job ID: ${widget.jobId}', style: const TextStyle(fontWeight: FontWeight.w800))),
               ],
@@ -1228,7 +1609,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final t = Dict.of(context);
     if (_email.text.trim().isEmpty || _password.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: MmtColors.news700, content: Text('Enter email and password')),
+        const SnackBar(backgroundColor: MmtColors.news700, content: Text('Enter email and password')),
       );
       return;
     }
@@ -1236,7 +1617,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final u = await ctrl.login(LoginRequest(
       email: _email.text.trim(),
       password: _password.text,
-    ));
+    ),);
     if (mounted && u != null) {
       // Navigate to returnTo OR home
       final r = widget.returnTo;
@@ -1305,7 +1686,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             constraints: const BoxConstraints(minWidth: 40),
             onPressed: () => setState(() => obscure = !obscure),
             icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-          )),
+          ),),
           const SizedBox(height: 8),
           Align(
             alignment: Alignment.centerRight,
@@ -1326,8 +1707,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
           const SizedBox(height: 20),
-          Row(
-            children: const [
+          const Row(
+            children: [
               Expanded(child: Divider(color: MmtColors.divider, thickness: 1)),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
@@ -1343,7 +1724,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               onPressed: () {
                 ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Google login coming soon')));
               },
-              icon: const Icon(FontAwesomeIcons.google, size: 17),
+              icon: const FaIcon(FontAwesomeIcons.google, size: 17),
               label: const Text('CONTINUE WITH GOOGLE'),
             ),
           ),
@@ -1354,7 +1735,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               onPressed: () {
                 ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Facebook login coming soon')));
               },
-              icon: const Icon(FontAwesomeIcons.facebook, size: 17, color: Color(0xFF1877F2)),
+              icon: const FaIcon(FontAwesomeIcons.facebook, size: 17, color: Color(0xFF1877F2)),
               label: const Text('CONTINUE WITH FACEBOOK'),
             ),
           ),
@@ -1416,7 +1797,7 @@ class DashboardScreen extends ConsumerWidget {
     final dark = Theme.of(ctx).brightness == Brightness.dark;
     final user = ref.watch(currentUserProvider);
 
-    final tiles = <(IconData, String, Color)>[
+    final tiles = <(FaIconData, String, Color)>[
       (FontAwesomeIcons.penToSquare, 'Write story', MmtColors.news),
       (FontAwesomeIcons.layerGroup, 'My posts', MmtColors.ink950),
       (FontAwesomeIcons.comments, 'Moderation', MmtColors.ink950),
@@ -1504,7 +1885,7 @@ class DashboardScreen extends ConsumerWidget {
                                 BorderSide(color: MmtColors.ink950, width: 2),
                               ),
                             ),
-                            child: Icon(ic, size: 16, color: Colors.white),
+                            child: FaIcon(ic, size: 16, color: Colors.white),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -1604,7 +1985,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ),
       ),
       body: _submitted.trim().isEmpty
-          ? Center(child: Padding(padding: const EdgeInsets.all(30), child: Text('Type to search news…')))
+          ? Center(child: Padding(padding: const EdgeInsets.all(30), child: Text('Type to search news…', style: TextStyle(color: dark ? Colors.white : MmtColors.ink900, fontSize: 14, fontWeight: FontWeight.w600))))
           : resultsAsync.when(
               loading: () => const Center(child: CircularProgressIndicator(color: MmtColors.news)),
               error: (e, _) => Padding(
@@ -1651,9 +2032,10 @@ class _SearchTile extends StatelessWidget {
         ? DateFormat('dd MMM yyyy').format(p.publishedAt!.toLocal())
         : '';
     return Container(
-      decoration: const BoxDecoration(
-        border: Border.fromBorderSide(BorderSide(color: MmtColors.ink950, width: 2)),
-        boxShadow: [BoxShadow(color: MmtColors.ink950, offset: Offset(4, 4))],
+      decoration: BoxDecoration(
+        color: dark ? MmtColors.ink900 : Colors.white,
+        border: const Border.fromBorderSide(BorderSide(color: MmtColors.ink950, width: 2)),
+        boxShadow: const [BoxShadow(color: MmtColors.ink950, offset: Offset(4, 4))],
       ),
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -1662,12 +2044,13 @@ class _SearchTile extends StatelessWidget {
           Container(
             width: 100,
             height: 82,
-            decoration: const BoxDecoration(
-              border: Border(right: BorderSide(color: MmtColors.ink950, width: 2)),
+            decoration: BoxDecoration(
+              color: dark ? MmtColors.ink800 : MmtColors.chipBg,
+              border: const Border(right: BorderSide(color: MmtColors.ink950, width: 2)),
             ),
             child: p.cover.isEmpty
-                ? Container(color: dark ? MmtColors.ink800 : MmtColors.chipBg)
-                : Image.network(p.cover, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: MmtColors.chipBg)),
+                ? null
+                : Image.network(p.cover, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1742,10 +2125,558 @@ class _ErrorCard extends StatelessWidget {
                 boxShadow: const [BoxShadow(offset: Offset(3, 3), color: MmtColors.ink950)],
               ),
               child: Text(t.common.retry.toUpperCase(),
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.4)),
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.4, color: MmtColors.ink950),),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// SAVED ARTICLES SCREEN (tab 4) – bookmarked/offline articles
+// ============================================================================
+class SavedScreen extends ConsumerStatefulWidget {
+  const SavedScreen({super.key});
+  @override
+  ConsumerState<SavedScreen> createState() => _SavedScreenState();
+}
+class _SavedScreenState extends ConsumerState<SavedScreen> with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  BlogPostSummaryResponse? _metaFromMap(Map<String, String> m) {
+    try {
+      return BlogPostSummaryResponse(
+        id: m['s'] ?? m['t'] ?? '',
+        slug: m['s'] ?? '',
+        title: m['t'] ?? 'Untitled',
+        featuredImageUrl: m['c'] ?? '',
+        excerpt: m['e'],
+        publishedAt: (m['d']?.isNotEmpty ?? false) ? DateTime.tryParse(m['d']!) : null,
+        status: PostStatus.published,
+        postType: PostType.article,
+      );
+    } catch (_) { return null; }
+  }
+
+  @override
+  Widget build(BuildContext ctx) {
+    super.build(ctx);
+    final t = Dict.of(ctx);
+    final dark = Theme.of(ctx).brightness == Brightness.dark;
+    final savedIds = ref.watch(savedArticlesNotifierProvider);
+    final metaList = ref.watch(savedArticlesNotifierProvider.notifier).allMeta();
+    final posts = metaList.map(_metaFromMap).whereType<BlogPostSummaryResponse>().toList(growable: false);
+
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          pinned: true,
+          floating: false,
+          backgroundColor: dark ? MmtColors.ink950 : MmtColors.surface,
+          surfaceTintColor: Colors.transparent,
+          title: Text('Saved',
+              style: GoogleFonts.getFont('Archivo Black', fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.2, color: dark ? Colors.white : MmtColors.ink950)),
+          bottom: PreferredSize(preferredSize: const Size.fromHeight(2), child: Container(height: 2, color: MmtColors.ink950)),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+            child: Row(
+              children: [
+                FaIcon(FontAwesomeIcons.bookmark, size: 14, color: MmtColors.news),
+                const SizedBox(width: 8),
+                Text('${savedIds.length} articles saved offline',
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: dark ? Colors.white60 : MmtColors.ink700)),
+              ],
+            ),
+          ),
+        ),
+        if (posts.isEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 40, 24, 120),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 96, height: 96, alignment: Alignment.center,
+                    decoration: BoxDecoration(color: MmtColors.news50, border: Border.all(color: MmtColors.ink950, width: 2), boxShadow: const [BoxShadow(color: MmtColors.ink950, offset: Offset(4, 4))]),
+                    child: const FaIcon(FontAwesomeIcons.bookmark, size: 36, color: MmtColors.news),
+                  ),
+                  const SizedBox(height: 24),
+                  Text('No saved articles yet',
+                      style: GoogleFonts.getFont('Archivo Black', fontSize: 20, fontWeight: FontWeight.w900, color: dark ? Colors.white : MmtColors.ink950)),
+                  const SizedBox(height: 8),
+                  Text('Tap the bookmark icon on any article to save it for offline reading.',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(fontSize: 13.5, color: dark ? Colors.white60 : MmtColors.ink700, height: 1.55)),
+                ],
+              ),
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(18, 10, 18, 120),
+            sliver: SliverList.separated(
+              itemCount: posts.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (_, i) {
+                final p = posts[i];
+                return InkWell(
+                  onTap: () => ctx.push('/article/${p.slug}?id=${p.id}'),
+                  child: _SavedTile(p: p, dark: dark, onRemove: () => ref.read(savedArticlesNotifierProvider.notifier).remove(p.id)),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _SavedTile extends StatelessWidget {
+  final BlogPostSummaryResponse p;
+  final bool dark;
+  final VoidCallback onRemove;
+  const _SavedTile({required this.p, required this.dark, required this.onRemove});
+
+  @override
+  Widget build(BuildContext ctx) {
+    final cat = (p.categories?.isNotEmpty ?? false) ? p.categories!.first.name.toUpperCase() : 'SAVED';
+    final date = p.publishedAt != null ? DateFormat('dd MMM yyyy').format(p.publishedAt!.toLocal()) : '';
+    return Container(
+      decoration: BoxDecoration(
+        color: dark ? MmtColors.ink900 : Colors.white,
+        border: const Border.fromBorderSide(BorderSide(color: MmtColors.ink950, width: 2)),
+        boxShadow: const [BoxShadow(color: MmtColors.ink950, offset: Offset(4, 4))],
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(
+          width: 110,
+          height: 100,
+          decoration: BoxDecoration(
+            color: dark ? MmtColors.ink800 : MmtColors.chipBg,
+            border: const Border(right: BorderSide(color: MmtColors.ink950, width: 2)),
+          ),
+          child: p.cover.isEmpty
+            ? const FaIcon(FontAwesomeIcons.newspaper, size: 22, color: MmtColors.news)
+            : Image.network(p.cover, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3), color: MmtColors.news,
+                  child: Text(cat, style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.0, color: Colors.white, height: 1.0))),
+                const Spacer(),
+                InkWell(onTap: onRemove, child: Container(width: 26, height: 26, alignment: Alignment.center,
+                  decoration: BoxDecoration(border: Border.all(color: MmtColors.ink950, width: 1.5)),
+                  child: const FaIcon(FontAwesomeIcons.xmark, size: 13, color: MmtColors.ink950))),
+              ]),
+              const SizedBox(height: 8),
+              Text(p.title, maxLines: 3, overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.getFont('Archivo Black', fontSize: 14.5, height: 1.18, fontWeight: FontWeight.w900, letterSpacing: -0.1, color: dark ? Colors.white : MmtColors.ink950)),
+              const SizedBox(height: 8),
+              if (date.isNotEmpty) Text(date, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: dark ? Colors.white54 : MmtColors.textFaint)),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// ============================================================================
+// PROFILE / SETTINGS SCREEN (tab 5) – dark mode, language, account, lists
+// ============================================================================
+class ProfileScreen extends ConsumerWidget {
+  const ProfileScreen({super.key});
+
+  @override
+  Widget build(BuildContext ctx, WidgetRef ref) {
+    final t = Dict.of(ctx);
+    final dark = Theme.of(ctx).brightness == Brightness.dark;
+    final themeMode = ref.watch(themeModeNotifierProvider);
+    final user = ref.watch(currentUserProvider);
+    final isAuth = ref.watch(isAuthenticatedProvider);
+    final savedCount = ref.watch(savedArticlesNotifierProvider).length;
+
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          pinned: true, floating: false,
+          backgroundColor: dark ? MmtColors.ink950 : MmtColors.surface,
+          surfaceTintColor: Colors.transparent,
+          title: Text('Profile',
+              style: GoogleFonts.getFont('Archivo Black', fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.2, color: dark ? Colors.white : MmtColors.ink950)),
+          bottom: PreferredSize(preferredSize: const Size.fromHeight(2), child: Container(height: 2, color: MmtColors.ink950)),
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              // ===== Account Card =====
+              Container(
+                decoration: BoxDecoration(color: MmtColors.news, border: Border.all(color: MmtColors.ink950, width: 2), boxShadow: const [BoxShadow(color: MmtColors.ink950, offset: Offset(4, 4))]),
+                padding: const EdgeInsets.all(18),
+                child: Row(children: [
+                  Container(width: 54, height: 54, alignment: Alignment.center,
+                    decoration: BoxDecoration(color: Colors.white, border: Border.all(color: MmtColors.ink950, width: 2)),
+                    child: FaIcon(isAuth ? FontAwesomeIcons.user : FontAwesomeIcons.userAstronaut, size: 22, color: MmtColors.ink950)),
+                  const SizedBox(width: 14),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(isAuth ? (user?.displayName ?? user?.firstName ?? 'Reader') : 'Guest Reader',
+                        style: GoogleFonts.getFont('Archivo Black', fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
+                    const SizedBox(height: 4),
+                    Text(isAuth ? (user?.email ?? 'Signed in') : 'Sign in to sync saved articles & preferences',
+                        style: GoogleFonts.inter(fontSize: 12.5, color: Colors.white70, height: 1.4)),
+                  ])),
+                  const SizedBox(width: 10),
+                  InkWell(
+                    onTap: isAuth
+                      ? () async { await ref.read(authControllerProvider.notifier).logout(); if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Signed out'), backgroundColor: MmtColors.ink950)); }
+                      : () => ctx.push('/login'),
+                    child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(color: MmtColors.ink950, border: Border.all(color: MmtColors.ink950, width: 2)),
+                      child: Text((isAuth ? 'SIGN OUT' : 'SIGN IN'),
+                          style: GoogleFonts.inter(fontSize: 10.5, fontWeight: FontWeight.w900, letterSpacing: 1.2, color: Colors.white, height: 1.0))),
+                  ),
+                ]),
+              ),
+
+              const SizedBox(height: 28),
+              // ===== Lists =====
+              const SectionEyebrow('YOUR LISTS'),
+              const SizedBox(height: 14),
+              _SettingRow(icon: FontAwesomeIcons.bookmark, label: 'Saved Articles', trailing: '$savedCount saved', dark: dark, onTap: () => ctx.go('/saved')),
+              _SettingRow(icon: FontAwesomeIcons.clockRotateLeft, label: 'Recently Viewed', trailing: '${ref.watch(recentlyViewedProvider).length} items', dark: dark, onTap: () {}),
+
+              const SizedBox(height: 28),
+              // ===== Appearance =====
+              const SectionEyebrow('APPEARANCE'),
+              const SizedBox(height: 14),
+              Container(
+                decoration: BoxDecoration(border: Border.all(color: MmtColors.ink950, width: 2), color: dark ? MmtColors.ink900 : Colors.white),
+                padding: const EdgeInsets.all(14),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Theme Mode', style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w800, letterSpacing: 0.6, color: dark ? Colors.white70 : MmtColors.ink700)),
+                  const SizedBox(height: 12),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    _themeChip('LIGHT', MmtThemeMode.light, themeMode, dark, ref, FontAwesomeIcons.sun),
+                    _themeChip('DARK', MmtThemeMode.dark, themeMode, dark, ref, FontAwesomeIcons.moon),
+                    _themeChip('SYSTEM', MmtThemeMode.system, themeMode, dark, ref, FontAwesomeIcons.display),
+                  ]),
+                ]),
+              ),
+
+              const SizedBox(height: 28),
+              // ===== Language =====
+              const SectionEyebrow('LANGUAGE'),
+              const SizedBox(height: 14),
+              Container(
+                decoration: BoxDecoration(border: Border.all(color: MmtColors.ink950, width: 2), color: dark ? MmtColors.ink900 : Colors.white),
+                padding: const EdgeInsets.all(14),
+                child: Row(children: [
+                  Text('App language', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: dark ? Colors.white : MmtColors.ink950)),
+                  const Spacer(),
+                  MmtChip(label: LangScope.codeOf(ctx) == LangCode.hi ? 'हिन्दी' : 'ENGLISH', selected: true, onTap: () {
+                    LangScope.toggle(ctx);
+                    final newT = Dict.of(ctx);
+                    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(backgroundColor: MmtColors.ink950, content: Text(newT.common.languageSwitched, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)), duration: const Duration(milliseconds: 1200)));
+                  }),
+                ]),
+              ),
+
+              const SizedBox(height: 28),
+              // ===== Pages =====
+              const SectionEyebrow('ABOUT & CONTACT'),
+              const SizedBox(height: 14),
+              _SettingRow(icon: FontAwesomeIcons.circleInfo, label: 'About MapMyTimes', trailing: '', dark: dark, onTap: () => ctx.push('/about')),
+              _SettingRow(icon: FontAwesomeIcons.envelope, label: 'Contact Newsroom', trailing: 'admin@mapmytimes.com', dark: dark, onTap: () => ctx.push('/contact')),
+              _SettingRow(icon: FontAwesomeIcons.briefcase, label: 'Careers', trailing: '', dark: dark, onTap: () => ctx.push('/careers')),
+              if (isAuth) _SettingRow(icon: FontAwesomeIcons.gaugeHigh, label: 'Dashboard', trailing: '', dark: dark, onTap: () => ctx.push('/dashboard')),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _themeChip(String label, MmtThemeMode mine, MmtThemeMode cur, bool dark, WidgetRef ref, FaIconData ic) {
+    final sel = cur == mine;
+    return InkWell(
+      onTap: () => ref.read(themeModeNotifierProvider.notifier).set(mine),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: sel ? MmtColors.news : (dark ? MmtColors.ink950 : Colors.white),
+          border: Border.all(color: MmtColors.ink950, width: 2),
+          boxShadow: sel ? const [BoxShadow(color: MmtColors.ink950, offset: Offset(2, 2))] : const [],
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          FaIcon(ic, size: 12, color: sel ? Colors.white : (dark ? Colors.white : MmtColors.ink950)),
+          const SizedBox(width: 6),
+          Text(label, style: GoogleFonts.inter(fontSize: 10.5, fontWeight: FontWeight.w900, letterSpacing: 1.2, color: sel ? Colors.white : (dark ? Colors.white : MmtColors.ink950), height: 1.0)),
+        ]),
+      ),
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  final FaIconData icon;
+  final String label;
+  final String trailing;
+  final bool dark;
+  final VoidCallback? onTap;
+  const _SettingRow({required this.icon, required this.label, required this.trailing, required this.dark, this.onTap});
+
+  @override
+  Widget build(BuildContext ctx) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(border: Border.all(color: MmtColors.ink950, width: 2), color: dark ? MmtColors.ink900 : Colors.white),
+        margin: const EdgeInsets.only(bottom: 8),
+        child: Row(children: [
+          Container(width: 34, height: 34, alignment: Alignment.center, decoration: BoxDecoration(color: MmtColors.news, border: Border.all(color: MmtColors.ink950, width: 2)),
+            child: FaIcon(icon, size: 14, color: Colors.white)),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: dark ? Colors.white : MmtColors.ink950))),
+          if (trailing.isNotEmpty) Text(trailing, style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w600, color: dark ? Colors.white54 : MmtColors.ink600)),
+          if (onTap != null) ...[
+            const SizedBox(width: 8),
+            const FaIcon(FontAwesomeIcons.chevronRight, size: 12, color: MmtColors.ink700),
+          ],
+        ]),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// CATEGORY FEED SCREEN (stack route /category/:slug) – posts filtered by slug
+// ============================================================================
+class CategoryFeedScreen extends ConsumerStatefulWidget {
+  final String slug;
+  const CategoryFeedScreen({super.key, required this.slug});
+
+  @override
+  ConsumerState<CategoryFeedScreen> createState() => _CategoryFeedScreenState();
+}
+
+final categoryPostsProvider = FutureProvider.family<List<BlogPostSummaryResponse>, String>((ref, slug) async {
+  try {
+    final all = await ref.watch(latestPostsProvider(1).future);
+    final cats = await ref.watch(categoriesProvider.future);
+    final match = cats.where((c) => c.slug == slug || c.name.toLowerCase() == slug.toLowerCase()).toList();
+    if (match.isEmpty) return all;
+    final catId = match.first.id;
+    final filtered = all.where((p) => (p.categories ?? []).any((c) => c.id == catId || c.slug == slug)).toList(growable: false);
+    if (filtered.isNotEmpty) return filtered;
+    return all;
+  } catch (_) { return <BlogPostSummaryResponse>[]; }
+});
+
+class _CategoryFeedScreenState extends ConsumerState<CategoryFeedScreen> {
+  @override
+  Widget build(BuildContext ctx) {
+    final t = Dict.of(ctx);
+    final dark = Theme.of(ctx).brightness == Brightness.dark;
+    final catsAsync = ref.watch(categoriesProvider);
+    final postsAsync = ref.watch(categoryPostsProvider(widget.slug));
+    final catName = catsAsync.whenOrNull(data: (list) {
+      final m = list.where((c) => c.slug == widget.slug || c.name.toLowerCase() == widget.slug.toLowerCase()).toList();
+      return m.isNotEmpty ? m.first.name : widget.slug.toUpperCase();
+    }) ?? widget.slug.toUpperCase();
+
+    return Scaffold(
+      backgroundColor: MmtColors.background,
+      appBar: AppBar(
+        backgroundColor: dark ? MmtColors.ink950 : Colors.white,
+        foregroundColor: dark ? Colors.white : MmtColors.ink950,
+        surfaceTintColor: Colors.transparent,
+        title: Text(catName,
+            style: GoogleFonts.getFont('Archivo Black', fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.2, color: dark ? Colors.white : MmtColors.ink950)),
+        bottom: PreferredSize(preferredSize: const Size.fromHeight(2), child: Container(height: 2, color: MmtColors.ink950)),
+      ),
+      body: postsAsync.when(
+        loading: () => ListView(padding: const EdgeInsets.all(20), children: List<Widget>.generate(6, (_) => [Container(height: 96, decoration: BoxDecoration(border: Border.all(color: MmtColors.ink700, width: 2), color: MmtColors.ink100)), const SizedBox(height: 16)].first)),
+        error: (e, _) => Padding(padding: const EdgeInsets.all(24), child: _ErrorCard(msg: e.toString(), retry: () => ref.invalidate(categoryPostsProvider(widget.slug)), t: t)),
+        data: (list) {
+          if (list.isEmpty) {
+            return Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('No stories in $catName yet.', style: GoogleFonts.inter(fontSize: 14, color: MmtColors.ink600))));
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 120),
+            itemCount: list.length,
+            itemBuilder: (_, i) {
+              final p = list[i];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: InkWell(onTap: () => ctx.push('/article/${p.slug}?id=${p.id}'), child: _CategoryTile(p: p, dark: dark)),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CategoryTile extends StatelessWidget {
+  final BlogPostSummaryResponse p;
+  final bool dark;
+  const _CategoryTile({required this.p, required this.dark});
+  @override
+  Widget build(BuildContext ctx) {
+    final cat = (p.categories?.isNotEmpty ?? false) ? p.categories!.first.name.toUpperCase() : 'NEWS';
+    final date = p.publishedAt != null ? DateFormat('dd MMM yyyy').format(p.publishedAt!.toLocal()) : '';
+    return Container(
+      decoration: const BoxDecoration(border: Border.fromBorderSide(BorderSide(color: MmtColors.ink950, width: 2)), boxShadow: [BoxShadow(color: MmtColors.ink950, offset: Offset(4, 4))]),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Container(width: 124, height: 104, decoration: const BoxDecoration(border: Border(right: BorderSide(color: MmtColors.ink950, width: 2))),
+          child: p.cover.isEmpty
+            ? Container(color: dark ? MmtColors.ink800 : MmtColors.chipBg)
+            : Image.network(p.cover, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: MmtColors.chipBg)),
+        ),
+        Expanded(
+          child: Padding(padding: const EdgeInsets.all(12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), color: MmtColors.news,
+                child: Text(cat, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, letterSpacing: 1.0, color: Colors.white, height: 1.0))),
+              const SizedBox(height: 10),
+              Text(p.title, maxLines: 3, overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.getFont('Archivo Black', fontSize: 16, height: 1.15, fontWeight: FontWeight.w900, letterSpacing: -0.1, color: dark ? Colors.white : MmtColors.ink950)),
+              const SizedBox(height: 12),
+              Text([
+                if (p.author?.name.isNotEmpty ?? false) p.author!.name,
+                if (date.isNotEmpty) date,
+                if ((p.viewCount ?? 0) > 0) '${p.viewCount} views',
+              ].join('  ·  '), style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: dark ? Colors.white54 : MmtColors.textFaint)),
+            ]),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+// =============================================================================
+// SECTION FEED SCREEN — /section/:slug
+// Mirrors CategoryFeedScreen but uses sectionsProvider + sectionPostsProvider
+// Section = top-level bucket (INDIA/WORLD/BUSINESS/TECH/SPORTS/etc)
+// =============================================================================
+class SectionFeedScreen extends ConsumerStatefulWidget {
+  final String slug;
+  const SectionFeedScreen({super.key, required this.slug});
+
+  @override
+  ConsumerState<SectionFeedScreen> createState() => _SectionFeedScreenState();
+}
+
+class _SectionFeedScreenState extends ConsumerState<SectionFeedScreen> {
+  MmtSection? _fallback() {
+    final l = widget.slug.toLowerCase();
+    for (final s in kMmtSections) {
+      if (s.slug == l) return s;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext ctx) {
+    final t = Dict.of(ctx);
+    final dark = Theme.of(ctx).brightness == Brightness.dark;
+    final sectionsAsync = ref.watch(sectionsProvider);
+    final postsAsync = ref.watch(sectionPostsProvider(widget.slug));
+
+    final fb = _fallback();
+    final meta = sectionsAsync.whenOrNull(data: (list) {
+      final m = list.where((s) => s.slug == widget.slug || s.name.toLowerCase() == widget.slug.toLowerCase()).toList();
+      return m.isNotEmpty ? (name: m.first.name, desc: m.first.description, icon: m.first.icon, accent: m.first.accentColor) : null;
+    });
+
+    final name = meta?.name ?? fb?.name ?? widget.slug.toUpperCase();
+    final desc = meta?.desc ?? fb?.desc ?? '';
+    final accentHex = meta?.accent;
+    final accent = accentHex != null && accentHex.isNotEmpty
+        ? Color(int.tryParse('0xFF${accentHex.replaceAll('#', '')}') ?? fb?.accent.toARGB32() ?? 0xFFBE123C)
+        : (fb?.accent ?? MmtColors.news);
+
+    return Scaffold(
+      backgroundColor: MmtColors.background,
+      appBar: AppBar(
+        backgroundColor: dark ? MmtColors.ink950 : Colors.white,
+        foregroundColor: dark ? Colors.white : MmtColors.ink950,
+        surfaceTintColor: Colors.transparent,
+        title: Text(name,
+            style: GoogleFonts.getFont('Archivo Black', fontSize: 20, fontWeight: FontWeight.w900, letterSpacing: -0.2, color: dark ? Colors.white : MmtColors.ink950)),
+        bottom: PreferredSize(preferredSize: const Size.fromHeight(2), child: Container(height: 2, color: MmtColors.ink950)),
+      ),
+      body: postsAsync.when(
+        loading: () => ListView(
+          padding: const EdgeInsets.all(20),
+          children: List<Widget>.generate(6, (_) => [
+            Container(height: 96, decoration: BoxDecoration(border: Border.all(color: MmtColors.ink700, width: 2), color: MmtColors.ink100)),
+            const SizedBox(height: 16)
+          ].first),
+        ),
+        error: (e, _) => Padding(padding: const EdgeInsets.all(24), child: _ErrorCard(msg: e.toString(), retry: () => ref.invalidate(sectionPostsProvider(widget.slug)), t: t)),
+        data: (list) {
+          final header = Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
+            child: Container(
+              decoration: BoxDecoration(border: Border.all(color: MmtColors.ink950, width: 2), color: dark ? MmtColors.ink900 : Colors.white, boxShadow: [BoxShadow(color: MmtColors.ink950.withValues(alpha: 0.08), offset: const Offset(3, 3), blurRadius: 0)]),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Row(children: [
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(border: Border.all(color: MmtColors.ink950, width: 2), color: accent),
+                  child: FaIcon(fb?.icon ?? FontAwesomeIcons.newspaper, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name, style: GoogleFonts.getFont('Archivo Black', fontSize: 18, fontWeight: FontWeight.w900, color: dark ? Colors.white : MmtColors.ink950, letterSpacing: -0.1)),
+                  if (desc.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(desc, maxLines: 2, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500, color: dark ? Colors.white60 : MmtColors.ink700, height: 1.3, letterSpacing: 0.1)),
+                  ]
+                ])),
+              ]),
+            ),
+          );
+
+          if (list.isEmpty) {
+            return ListView(
+              padding: const EdgeInsets.only(bottom: 120),
+              children: [
+                header,
+                const SizedBox(height: 8),
+                Center(child: Padding(padding: const EdgeInsets.all(32), child: Text('No stories in $name yet.', style: GoogleFonts.inter(fontSize: 14, color: MmtColors.ink600)))),
+              ],
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(18, 0, 18, 120),
+            itemCount: list.length + 1,
+            itemBuilder: (_, i) {
+              if (i == 0) return Padding(padding: const EdgeInsets.only(bottom: 12, top: 18), child: header);
+              final p = list[i - 1];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: InkWell(onTap: () => ctx.push('/article/${p.slug}?id=${p.id}'), child: _CategoryTile(p: p, dark: dark)),
+              );
+            },
+          );
+        },
       ),
     );
   }

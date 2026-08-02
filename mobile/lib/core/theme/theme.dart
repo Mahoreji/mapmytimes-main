@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'colors.dart';
 import 'text.dart';
@@ -64,9 +65,8 @@ class MmtTheme {
           letterSpacing: -0.2,
           color: fg,
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(2),
-          child: Container(color: MmtColors.ink950, height: 2),
+        shape: const Border(
+          bottom: BorderSide(color: MmtColors.ink950, width: 2),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -181,7 +181,7 @@ class MmtTheme {
       pageTransitionsTheme: const PageTransitionsTheme(builders: {
         TargetPlatform.android: ZoomPageTransitionsBuilder(),
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      }),
+      },),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: MmtColors.ink950,
         contentTextStyle: MmtText.body(mode: Brightness.light, color: Colors.white),

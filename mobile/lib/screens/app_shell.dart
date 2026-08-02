@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,8 +15,6 @@ import '../models/blog_models.dart';
 import '../providers/index.dart';
 import 'home_screen.dart';
 import 'shorts_feed.dart';
-import 'news_article_screen.dart';
-import 'static_screens.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.child});
@@ -24,12 +23,27 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell> with TickerProviderStateMixin {
+  late final PageController _homeShortsCtl;
+  int _hs = 0; // 0 = Home, 1 = Shorts (only applies when tab==0 main shell index)
+
+  @override
+  void initState() {
+    super.initState();
+    _homeShortsCtl = PageController(initialPage: 0, viewportFraction: 1.0);
+  }
+  @override
+  void dispose() {
+    _homeShortsCtl.dispose();
+    super.dispose();
+  }
+
   int get _index {
     final String loc = GoRouterState.of(context).uri.toString();
-    if (loc.startsWith('/news')) return 1;
+    if (loc.startsWith('/saved')) return 1;
     if (loc.startsWith('/videos')) return 2;
-    if (loc.startsWith('/menu')) return 4;
+    if (loc.startsWith('/categories')) return 3;
+    if (loc.startsWith('/profile')) return 4;
     return 0;
   }
 
@@ -49,163 +63,355 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext ctx) {
     final t = LangScope.of(ctx);
     final dark = Theme.of(ctx).brightness == Brightness.dark;
+    final int tab = _index;
+    final bool homeShell = (tab == 0);
+    final bool showTopTabs = homeShell; // segmented tabs ONLY on Home shell (swipe Home/Shorts)
+    final bool homeSelected = (_hs == 0);
+    final bool shortsSelected = (_hs == 1);
+
+    // ---- Build body: Home shell = swipe PageView Home|Shorts; else = shell child ----
+    final Widget body = homeShell
+        ? PageView(
+            controller: _homeShortsCtl,
+            onPageChanged: (i) => mounted ? setState(() => _hs = i) : null,
+            scrollDirection: Axis.horizontal,
+            physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
+            children: const [
+              HomeScreen(),
+              ShortsFeedScreen(),
+            ],
+          )
+        : widget.child;
 
     return Scaffold(
-      drawer: Drawer(
-        backgroundColor: dark ? MmtColors.ink900 : Colors.white,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.zero,
-          side: BorderSide(color: MmtColors.ink950, width: 2),
-        ),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(0, 60, 0, 20),
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: BrandLogo(size: 22, showTagline: true),
-            ),
-            const SizedBox(height: 24),
-            const Divider(color: MmtColors.ink950, thickness: 2, height: 2),
-            _DrawerItem(icon: FontAwesomeIcons.house, label: t.home, onTap: () => _goto('/')),
-            _DrawerItem(icon: FontAwesomeIcons.newspaper, label: t.news, onTap: () => _goto('/news')),
-            _DrawerItem(icon: FontAwesomeIcons.video, label: t.videos, onTap: () => _goto('/videos')),
-            _DrawerItem(
-              icon: FontAwesomeIcons.bowlFood,
-              label: t.shorts,
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/shorts');
-              },
-            ),
-            const Divider(color: MmtColors.divider, height: 1, thickness: 1),
-            _DrawerItem(icon: FontAwesomeIcons.magnifyingGlass, label: t.search, onTap: _openSearch),
-            _DrawerItem(
-              icon: FontAwesomeIcons.circleInfo,
-              label: t.about,
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/about');
-              },
-            ),
-            _DrawerItem(
-              icon: FontAwesomeIcons.envelope,
-              label: t.contact,
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/contact');
-              },
-            ),
-            _DrawerItem(
-              icon: FontAwesomeIcons.briefcase,
-              label: t.careers,
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/careers');
-              },
-            ),
-            _DrawerItem(
-              icon: FontAwesomeIcons.gaugeHigh,
-              label: t.dashboard,
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/dashboard');
-              },
-            ),
-            _DrawerItem(
-              icon: FontAwesomeIcons.rightToBracket,
-              label: t.signIn,
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/login');
-              },
-            ),
-            const Divider(color: MmtColors.divider, height: 1, thickness: 1),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                t.followUs,
-                style: GoogleFonts.getFont(
-                  'Archivo Black',
-                  fontSize: 12,
-                  letterSpacing: 1.8,
-                  color: dark ? Colors.white70 : MmtColors.textMuted,
-                  fontWeight: FontWeight.w900,
+      extendBody: true,
+      extendBodyBehindAppBar: true,
+      drawerEdgeDragWidth: 30,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(102),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22, tileMode: TileMode.clamp),
+            child: Container(
+              color: (dark ? MmtColors.ink900 : Colors.white).withValues(alpha: dark ? 0.55 : 0.62),
+              child: SafeArea(
+                bottom: false,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // ===== LAYER 1: Row = [ LEFT block | MIDDLE (spacer + tabs + spacer) | RIGHT block ] =====
+                    // Tabs float in CENTER region BETWEEN left & right blocks (Spacer weighted), true visual CENTER regardless of screen width
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 6, 10, 2),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // -------- LEFT BLOCK: Hamburger + Big Logo (no Expanded) --------
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Builder(
+                                builder: (ctx2) => InkWell(
+                                  onTap: () => Scaffold.of(ctx2).openDrawer(),
+                                  borderRadius: BorderRadius.circular(999),
+                                  child: Container(
+                                    height: 40,
+                                    width: 40,
+                                    alignment: Alignment.center,
+                                    child: FaIcon(
+                                      FontAwesomeIcons.bars,
+                                      size: 20,
+                                      color: dark ? Colors.white : MmtColors.ink950,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const BrandLogo(size: 44),
+                            ],
+                          ),
+                          // -------- MIDDLE: Home/Shorts tabs (Spacer wrapped for exact CENTER between left & right) --------
+                          if (showTopTabs) ...[
+                            const Spacer(),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                _SegmentTab(
+                                  label: t.navHome,
+                                  selected: homeSelected,
+                                  dark: dark,
+                                  onTap: () {
+                                    setState(() => _hs = 0);
+                                    _homeShortsCtl.animateToPage(0, duration: const Duration(milliseconds: 260), curve: Curves.easeOutCubic);
+                                  },
+                                ),
+                                const SizedBox(width: 12),
+                                _SegmentTab(
+                                  label: t.shorts,
+                                  selected: shortsSelected,
+                                  dark: dark,
+                                  onTap: () {
+                                    setState(() => _hs = 1);
+                                    _homeShortsCtl.animateToPage(1, duration: const Duration(milliseconds: 260), curve: Curves.easeOutCubic);
+                                  },
+                                ),
+                              ],
+                            ),
+                            const Spacer(),
+                          ] else
+                            const Spacer(),
+                          // -------- RIGHT BLOCK: Search (no Expanded) --------
+                          InkWell(
+                            onTap: _openSearch,
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              height: 40,
+                              width: 40,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: dark ? Colors.white24 : MmtColors.ink200, width: 1),
+                                color: dark ? MmtColors.ink850.withValues(alpha: 0.60) : Colors.white.withValues(alpha: 0.80),
+                              ),
+                              alignment: Alignment.center,
+                              child: FaIcon(
+                                FontAwesomeIcons.magnifyingGlass,
+                                size: 18,
+                                color: dark ? Colors.white : MmtColors.ink950,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // ===== LAYER 2: UNDERLINE INDICATOR (at very bottom) =====
+                    if (showTopTabs)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 8,
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 10 + 90, right: 10 + 40),
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _Underline(visible: homeSelected),
+                                const SizedBox(width: 12),
+                                _Underline(visible: shortsSelected),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
+          ),
+        ),
+      ),
+      drawer: Drawer(
+        width: MediaQuery.of(ctx).size.width * 0.86,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26, tileMode: TileMode.clamp),
+            child: Container(
+              decoration: BoxDecoration(
+                color: (dark ? MmtColors.ink900 : Colors.white).withValues(alpha: dark ? 0.78 : 0.82),
+                border: Border(
+                  right: BorderSide(color: dark ? Colors.white24 : MmtColors.ink200, width: 1),
+                ),
+              ),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(0, 56, 0, 22),
                 children: [
-                  _SocialIcon(icon: FontAwesomeIcons.facebookF, onTap: () => _launchSocial(Env.facebook)),
-                  const SizedBox(width: 10),
-                  _SocialIcon(icon: FontAwesomeIcons.xTwitter, onTap: () => _launchSocial(Env.twitter)),
-                  const SizedBox(width: 10),
-                  _SocialIcon(icon: FontAwesomeIcons.instagram, onTap: () => _launchSocial(Env.instagram)),
-                  const SizedBox(width: 10),
-                  _SocialIcon(icon: FontAwesomeIcons.youtube, onTap: () => _launchSocial(Env.youtube)),
-                  const SizedBox(width: 10),
-                  _SocialIcon(icon: FontAwesomeIcons.linkedinIn, onTap: () => _launchSocial(Env.linkedin)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 22),
+                    child: BrandLogo(size: 28, showTagline: true),
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(color: MmtColors.ink950, thickness: 2, height: 2, indent: 22, endIndent: 22),
+                  const SizedBox(height: 10),
+                  _DrawerItem(icon: FaIcon(FontAwesomeIcons.house, size: 18, color: dark ? Colors.white : MmtColors.ink950), label: t.navHome, onTap: () => _goto('/')),
+                  _DrawerItem(icon: FaIcon(FontAwesomeIcons.newspaper, size: 18, color: dark ? Colors.white : MmtColors.ink950), label: t.news, onTap: () => _goto('/news')),
+                  _DrawerItem(icon: FaIcon(FontAwesomeIcons.video, size: 18, color: dark ? Colors.white : MmtColors.ink950), label: t.videos, onTap: () => _goto('/videos')),
+                  _DrawerItem(
+                    icon: FaIcon(FontAwesomeIcons.bowlFood, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+                    label: t.shorts,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      context.push('/shorts');
+                    },
+                  ),
+                  const SizedBox(height: 6),
+                  Divider(color: dark ? Colors.white12 : MmtColors.ink200, height: 1, thickness: 1, indent: 22, endIndent: 22),
+                  const SizedBox(height: 6),
+                  _DrawerItem(icon: FaIcon(FontAwesomeIcons.magnifyingGlass, size: 18, color: dark ? Colors.white : MmtColors.ink950), label: t.search, onTap: _openSearch),
+                  _DrawerItem(
+                    icon: FaIcon(FontAwesomeIcons.compass, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+                    label: 'Explore Categories',
+                    onTap: () => _goto('/categories'),
+                  ),
+                  _DrawerItem(
+                    icon: FaIcon(FontAwesomeIcons.circleInfo, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+                    label: t.about,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      context.push('/about');
+                    },
+                  ),
+                  _DrawerItem(
+                    icon: FaIcon(FontAwesomeIcons.envelope, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+                    label: t.contact,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      context.push('/contact');
+                    },
+                  ),
+                  _DrawerItem(
+                    icon: FaIcon(FontAwesomeIcons.briefcase, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+                    label: t.careers,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      context.push('/careers');
+                    },
+                  ),
+                  _DrawerItem(
+                    icon: FaIcon(FontAwesomeIcons.gaugeHigh, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+                    label: t.dashboard,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      context.push('/dashboard');
+                    },
+                  ),
+                  _DrawerItem(
+                    icon: FaIcon(FontAwesomeIcons.rightToBracket, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+                    label: t.signIn,
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      context.push('/login');
+                    },
+                  ),
+                  const SizedBox(height: 22),
+                  Divider(color: dark ? Colors.white12 : MmtColors.ink200, height: 1, thickness: 1, indent: 22, endIndent: 22),
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    child: Text(t.footer.followUs, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w800, color: dark ? MmtColors.ink600 : MmtColors.ink700, letterSpacing: 0.3)),
+                  ),
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    child: Wrap(
+                      spacing: 10, runSpacing: 10,
+                      children: [
+                        _socBtn(FontAwesomeIcons.facebookF, Env.socialFacebook, dark),
+                        _socBtn(FontAwesomeIcons.xTwitter, Env.socialTwitter, dark),
+                        _socBtn(FontAwesomeIcons.instagram, Env.socialInstagram, dark),
+                        _socBtn(FontAwesomeIcons.youtube, Env.socialYoutube, dark),
+                        _socBtn(FontAwesomeIcons.linkedinIn, Env.socialLinkedin, dark),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 22),
+                    child: Text('© ${DateTime.now().year} MAPMYTOUR LLP, India · ${t.footer.copyright}', style: GoogleFonts.inter(fontSize: 10.5, fontWeight: FontWeight.w600, color: MmtColors.ink600)),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 30),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                t.copyrightYear(DateTime.now().year),
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: dark ? Colors.white38 : MmtColors.textFaint,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
-      body: widget.child,
-      bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: MmtColors.ink950, width: 2)),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _index,
-          onTap: _onTab,
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: true,
-          showUnselectedLabels: true,
-          elevation: 0,
-          backgroundColor: dark ? MmtColors.ink900 : Colors.white,
-          items: [
-            BottomNavigationBarItem(
-              icon: const Icon(FontAwesomeIcons.house),
-              label: t.home,
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(FontAwesomeIcons.newspaper),
-              label: t.news,
-            ),
-            BottomNavigationBarItem(
-              icon: const Icon(FontAwesomeIcons.video),
-              label: t.videos,
-            ),
-            BottomNavigationBarItem(
-              icon: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => context.push('/shorts'),
-                child: const Icon(FontAwesomeIcons.bowlFood),
+      body: body,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20, tileMode: TileMode.clamp),
+            child: Container(
+              height: 66,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                color: (dark ? MmtColors.ink900 : Colors.white).withValues(alpha: dark ? 0.65 : 0.72),
+                border: Border.all(
+                  color: (dark ? Colors.white : MmtColors.ink950).withValues(alpha: dark ? 0.16 : 0.10),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: (dark ? Colors.black : MmtColors.ink950).withValues(alpha: 0.18),
+                    offset: const Offset(0, 12),
+                    blurRadius: 32,
+                    spreadRadius: -8,
+                  ),
+                ],
               ),
-              label: t.shorts,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _CnnTab(
+                    icon: FontAwesomeIcons.house,
+                    selected: tab == 0,
+                    dark: dark,
+                    onTap: () => _onTab(0),
+                  ),
+                  _CnnTab(
+                    icon: FontAwesomeIcons.bookmark,
+                    selected: tab == 1,
+                    dark: dark,
+                    onTap: () => _onTab(1),
+                  ),
+                  _CnnTab(
+                    icon: FontAwesomeIcons.video,
+                    selected: tab == 2,
+                    dark: dark,
+                    big: true,
+                    onTap: () => _onTab(2),
+                  ),
+                  _CnnTab(
+                    icon: FontAwesomeIcons.compass,
+                    selected: tab == 3,
+                    dark: dark,
+                    onTap: () => _onTab(3),
+                  ),
+                  _CnnTab(
+                    icon: FontAwesomeIcons.user,
+                    selected: tab == 4,
+                    dark: dark,
+                    onTap: () => _onTab(4),
+                  ),
+                ],
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: const Icon(Icons.menu_rounded),
-              label: 'Menu',
-            ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _socBtn(FaIconData ic, String url, bool dark) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(6),
+      onTap: () async {
+        try { await launchUrlString(url, mode: LaunchMode.externalApplication); } catch (_) {}
+      },
+      child: Container(
+        width: 38, height: 38, alignment: Alignment.center,
+        decoration: BoxDecoration(
+          border: Border.all(color: dark ? Colors.white24 : MmtColors.ink950, width: 1.6),
+          color: dark ? Colors.white.withValues(alpha: 0.06) : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: FaIcon(ic, size: 14, color: dark ? Colors.white : MmtColors.ink950),
       ),
     );
   }
@@ -214,18 +420,24 @@ class _AppShellState extends State<AppShell> {
     switch (i) {
       case 0:
         context.go('/');
+        if (mounted) {
+          setState(() => _hs = 0);
+          if (_homeShortsCtl.hasClients) {
+            _homeShortsCtl.animateToPage(0, duration: const Duration(milliseconds: 220), curve: Curves.easeOutCubic);
+          }
+        }
         break;
       case 1:
-        context.go('/news');
+        context.go('/saved');
         break;
       case 2:
         context.go('/videos');
         break;
       case 3:
-        context.push('/shorts');
+        context.go('/categories');
         break;
       case 4:
-        context.go('/menu');
+        context.go('/profile');
         break;
     }
   }
@@ -238,7 +450,7 @@ class _AppShellState extends State<AppShell> {
 
 // ---------- Drawer list item ----------
 class _DrawerItem extends StatelessWidget {
-  final IconData icon;
+  final Widget icon;
   final String label;
   final VoidCallback onTap;
   const _DrawerItem({
@@ -253,7 +465,7 @@ class _DrawerItem extends StatelessWidget {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
       horizontalTitleGap: 16,
-      leading: Icon(icon, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+      leading: icon,
       title: Text(
         label,
         style: GoogleFonts.inter(
@@ -270,7 +482,7 @@ class _DrawerItem extends StatelessWidget {
 
 // ---------- Social icon button (drawer footer) ----------
 class _SocialIcon extends StatelessWidget {
-  final IconData icon;
+  final Widget icon;
   final VoidCallback onTap;
   const _SocialIcon({required this.icon, required this.onTap});
 
@@ -287,10 +499,131 @@ class _SocialIcon extends StatelessWidget {
           border: Border.all(color: dark ? Colors.white24 : MmtColors.ink950, width: 2),
           color: dark ? MmtColors.ink950 : Colors.white,
         ),
-        child: Icon(
-          icon,
-          size: 15,
-          color: dark ? Colors.white70 : MmtColors.ink950,
+        child: icon,
+      ),
+    );
+  }
+}
+
+// ---------- Header segmented tab (CNN Top Stories / Shorts style) ----------
+class _SegmentTab extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final bool dark;
+  final VoidCallback onTap;
+  const _SegmentTab({required this.label, required this.selected, required this.dark, required this.onTap});
+
+  @override
+  Widget build(BuildContext ctx) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 15,
+            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            color: selected ? (dark ? Colors.white : MmtColors.ink950) : (dark ? Colors.white60 : MmtColors.textMuted),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------- Header underline indicator (CNN selected-tab underline) ----------
+class _Underline extends StatelessWidget {
+  final bool visible;
+  const _Underline({required this.visible});
+
+  @override
+  Widget build(BuildContext ctx) {
+    return Flexible(
+      child: LayoutBuilder(
+        builder: (ctx, c) {
+          final width = c.maxWidth.isFinite ? c.maxWidth : 80.0;
+          final target = visible ? width : 0.0;
+          return Align(
+            alignment: Alignment.centerLeft,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              height: 2,
+              width: target,
+              decoration: const BoxDecoration(
+                color: MmtColors.news,
+                borderRadius: BorderRadius.zero,
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------- CNN-style footer pill tab (5 icons flat, selected = RED FILLED CAPSULE) ----------
+class _CnnTab extends StatelessWidget {
+  final FaIconData icon;
+  final bool selected;
+  final bool dark;
+  final bool big;
+  final VoidCallback onTap;
+  const _CnnTab({
+    required this.icon,
+    required this.selected,
+    required this.dark,
+    required this.onTap,
+    this.big = false,
+  });
+
+  @override
+  Widget build(BuildContext ctx) {
+    final double iconSize = big ? 26 : 20;
+    final double capPad = big ? 10 : 2;
+    final Color fg = selected
+        ? Colors.white
+        : (dark ? Colors.white70 : MmtColors.ink700);
+    final Color bg = selected
+        ? MmtColors.news
+        : Colors.transparent;
+    final List<BoxShadow> shadow = (big && selected)
+        ? [
+            BoxShadow(
+              color: MmtColors.news.withValues(alpha: 0.42),
+              offset: const Offset(0, 6),
+              blurRadius: 16,
+              spreadRadius: -2,
+            ),
+          ]
+        : const [];
+    return Expanded(
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: capPad),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(999),
+            border: big
+                ? Border.all(color: selected ? Colors.white : Colors.transparent, width: selected ? 1.4 : 0)
+                : null,
+            boxShadow: shadow,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(999),
+              child: Container(
+                alignment: Alignment.center,
+                child: FaIcon(icon, size: iconSize, color: fg),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -317,7 +650,7 @@ class _NewsListScreenState extends ConsumerState<NewsListScreen>
         width: w,
         decoration: BoxDecoration(
           border: Border.all(color: MmtColors.ink700, width: 2),
-          color: MmtColors.ink600.withOpacity(0.12),
+          color: MmtColors.ink600.withValues(alpha: 0.12),
         ),
       );
 
@@ -378,14 +711,14 @@ class _NewsListScreenState extends ConsumerState<NewsListScreen>
                   decoration: BoxDecoration(
                     border: Border.all(color: MmtColors.ink950, width: 2),
                     color: MmtColors.news50,
-                    boxShadow: const BoxShadow(offset: Offset(4, 4), color: MmtColors.ink950),
+                    boxShadow: const [BoxShadow(offset: Offset(4, 4), color: MmtColors.ink950)],
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         '⚠ ${t.common.loadingError}',
-                        style: TextStyle(color: MmtColors.news700, fontWeight: FontWeight.w900, fontSize: 14),
+                        style: const TextStyle(color: MmtColors.news700, fontWeight: FontWeight.w900, fontSize: 14),
                       ),
                       const SizedBox(height: 8),
                       Text(e.toString(), style: const TextStyle(fontSize: 12, color: MmtColors.ink700)),
@@ -397,10 +730,10 @@ class _NewsListScreenState extends ConsumerState<NewsListScreen>
                           decoration: BoxDecoration(
                             border: Border.all(color: MmtColors.ink950, width: 2),
                             color: Colors.white,
-                            boxShadow: const BoxShadow(offset: Offset(3, 3), color: MmtColors.ink950),
+                            boxShadow: const [BoxShadow(offset: Offset(3, 3), color: MmtColors.ink950)],
                           ),
                           child: Text(t.common.retry.toUpperCase(),
-                              style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.4)),
+                              style: GoogleFonts.inter(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.4),),
                         ),
                       ),
                     ],

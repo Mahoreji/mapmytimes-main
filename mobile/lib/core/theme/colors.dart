@@ -20,9 +20,12 @@ class MmtColors {
   // Ink black family — background / surface dark
   static const Color ink950 = Color(0xFF0A0A0A);
   static const Color ink900 = Color(0xFF121212);
+  static const Color ink850 = Color(0xFF171717);
   static const Color ink800 = Color(0xFF1A1A1A);
   static const Color ink700 = Color(0xFF242424);
   static const Color ink600 = Color(0xFF2E2E2E);
+  static const Color ink200 = Color(0xFFD4D4D4);
+  static const Color ink100 = Color(0xFFE5E5E5);
 
   // Semantic
   static const Color background = Color(0xFFFFFBF8);
@@ -102,6 +105,6 @@ class MmtTokens {
 
   // Timings
   static const Duration fast = Duration(milliseconds: 120);
-  static const Duration base = Duration(milliseconds: 200);
+  static const Duration baseDur = Duration(milliseconds: 200);
   static const Duration slow = Duration(milliseconds: 500);
 }

@@ -57,12 +57,14 @@ class AuthService {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
-  Future<String> _qs(Map<String, Object?> params) async {
+  String _qs(Map<String, Object?> params) {
     final parts = <String>[];
     params.forEach((k, v) {
       if (v == null) return;
       if (v is Iterable) {
-        for (final e in v) parts.add('$k=${Uri.encodeQueryComponent(e.toString())}');
+        for (final e in v) {
+          parts.add('$k=${Uri.encodeQueryComponent(e.toString())}');
+        }
         return;
       }
       final s = v.toString();
@@ -94,14 +96,14 @@ class AuthService {
 
   Future<String> resendVerification(ResendVerificationRequest req) async {
     final r = await _dio.post('$_authV1/send-verification-otp', data: req.toJson());
-    final env = _env<String>(r, (Object? j) => (j is Map ? ((j['message'] ?? '') : (j ?? '').toString());
+    final env = _env<String>(r, (Object? j) => (j is Map ? ((j['message'] ?? '')) : (j ?? '')).toString());
     try { return _unwrap(env); } catch (_) { return 'Verification OTP sent'; }
   }
 
   Future<Map<String, bool>> checkEmail(String email) async {
-    final q = await _qs({'email': email});
+    final q = _qs({'email': email});
     final r = await _dio.get('$_authV1/check-email$q');
-    final env = _env<Map<String, dynamic>>(r, (Object? j) => j is Map ? Map<String, dynamic>.from(j as Map) : <String, dynamic>{});
+    final env = _env<Map<String, dynamic>>(r, (Object? j) => j is Map ? Map<String, dynamic>.from(j) : <String, dynamic>{});
     final m = _unwrap(env);
     return <String, bool>{
       'available': (m['available'] as bool?) ?? false,
@@ -130,7 +132,7 @@ class AuthService {
 
   Future<String> sendLoginOtp(SendOtpRequest req) async {
     final r = await _dio.post('$_authV1/send-otp', data: req.toJson());
-    final env = _env<String>(r, (Object? j) => (j is Map ? ((j['message'] ?? '') : (j ?? '')).toString());
+    final env = _env<String>(r, (Object? j) => (j is Map ? ((j['message'] ?? '')) : (j ?? '')).toString());
     try { return _unwrap(env); } catch (_) { return 'OTP sent'; }
   }
 
@@ -221,7 +223,7 @@ class AuthService {
   // OAUTH2 — external providers (google / facebook) via flutter_web_auth_2 URL
   // ===========================================================================
   Uri oauth2AuthorizeUrl(String provider, {String? redirectScheme}) {
-    final scheme = redirectScheme ?? Env.appLinkScheme;
+    final scheme = redirectScheme ?? Env.linkScheme;
     final q = <String, Object?>{
       'provider': provider,
       'redirect_uri': '$scheme://oauth-callback',

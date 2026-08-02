@@ -77,7 +77,7 @@ Shorts + Articles push on top as root routes (full-screen).
 
 `lib/services/blog_service.dart` is a singleton Dio client with:
 
-- `baseUrl = Env.apiBaseUrl` (default `https://api.mapmytour.in`, override in `.env`)
+- `baseUrl = Env.apiBaseUrl` (default `https://api.mapmytimes.com`, override in `.env`)
 - `X-Source: mapmytimes-mobile` header, 15 s timeouts
 - `PrettyDioLogger` in debug builds only
 - `setBearerToken(String)` for authenticated calls

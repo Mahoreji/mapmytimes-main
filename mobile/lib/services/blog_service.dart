@@ -1,14 +1,12 @@
 // -------------------------------------------------------------------------
 // BlogService — API client for MapMyTimes blog-service (Spring Boot Java).
 // All endpoints are 1:1 mirror of frontend/src/lib/api/blogApi.ts
-// Base URL: Env.apiBaseUrl = https://api.mapmytour.in (overridable in .env)
+// Base URL: Env.apiBaseUrl = https://api.mapmytimes.com (overridable in .env)
 // -------------------------------------------------------------------------
 
-import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:pretty_dio_logger/pretty_dio_logger.dart';
-import '../core/env.dart';
 import '../models/blog_models.dart';
+import 'common.dart';
 
 class BlogService {
   BlogService._(this.dio);
@@ -18,25 +16,7 @@ class BlogService {
   // Init
   // ---------------------------------------------------------------------------
   static BlogService create({Dio? existing}) {
-    final d = existing ?? Dio(BaseOptions(
-      baseUrl: Env.apiBaseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 20),
-      sendTimeout: const Duration(seconds: 20),
-      headers: {
-        'Accept': 'application/json',
-        'X-Source': 'mapmytimes-mobile',
-      },
-    ));
-    if (Env.isDebug && !d.interceptors.whereType<PrettyDioLogger>().isNotEmpty) {
-      d.interceptors.add(PrettyDioLogger(
-        requestHeader: true,
-        responseBody: false,
-        error: true,
-        compact: true,
-        maxWidth: 120,
-      ));
-    }
+    final d = existing ?? createDio();
     return BlogService._(d);
   }
 
@@ -109,6 +89,7 @@ class BlogService {
   // ===========================================================================
   static const postsV1 = '/api/v1/blog/posts';
   static const catsV1 = '/api/v1/blog/categories';
+  static const sectionsV1 = '/api/v1/blog/sections';
   static const tagsV1 = '/api/v1/blog/tags';
   static const likesV1 = '/api/v1/blog/likes';
 
@@ -116,6 +97,7 @@ class BlogService {
     int page = 1,
     int size = 20,
     String? categoryId,
+    String? sectionSlug,
     String? tagId,
     String? status = 'PUBLISHED',
     String? postType,
@@ -128,8 +110,9 @@ class BlogService {
     final q = _query({
       'page': page,
       'size': size,
-      if (categoryId != null) 'categoryId': categoryId,
-      if (tagId != null) 'tagId': tagId,
+      if (categoryId != null) 'category': categoryId,
+      if (sectionSlug != null) 'sectionSlug': sectionSlug,
+      if (tagId != null) 'tag': tagId,
       if (status != null) 'status': status,
       if (postType != null) 'postType': postType,
       if (isFeatured != null) 'isFeatured': isFeatured,
@@ -138,7 +121,7 @@ class BlogService {
       if (language != null) 'language': language,
       'sort': sort,
     });
-    final r = await dio.get('$postsV1$q');
+    final r = await dio.get('$postsV1/search$q');
     final env = _unwrapEnvelope(
       r,
       (Object? json) => _paginated<BlogPostSummaryResponse>(
@@ -173,6 +156,7 @@ class BlogService {
     int size = 20,
     String? language,
     String? category,
+    String? sectionSlug,
     String? tag,
   }) async {
     final q = _query({
@@ -181,6 +165,7 @@ class BlogService {
       'size': size,
       if (language != null) 'language': language,
       if (category != null) 'category': category,
+      if (sectionSlug != null) 'sectionSlug': sectionSlug,
       if (tag != null) 'tag': tag,
     });
     final r = await dio.get('$postsV1/search$q');
@@ -225,6 +210,30 @@ class BlogService {
       },
     );
     return env.data ?? <CategoryResponse>[];
+  }
+
+  // ===========================================================================
+  // SECTIONS
+  // ===========================================================================
+  Future<List<SectionResponse>> sectionsList() async {
+    final r = await dio.get('$sectionsV1${_query({'size': 200})}');
+    final env = _unwrapEnvelope(
+      r,
+      (Object? json) {
+        if (json is List) {
+          return json.map((j) => SectionResponse.fromJson(Map<String, dynamic>.from(j as Map))).toList(growable: false);
+        }
+        if (json is Map<String, dynamic>) {
+          final p = PaginatedResponse.fromJson(
+            json,
+            (j) => SectionResponse.fromJson(Map<String, dynamic>.from(j as Map)),
+          );
+          return p.items;
+        }
+        return <SectionResponse>[];
+      },
+    );
+    return env.data ?? <SectionResponse>[];
   }
 
   // ===========================================================================

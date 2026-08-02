@@ -27,29 +27,6 @@ class NewsCardVertical extends StatelessWidget {
         : '';
     final catName = (post.categories?.isNotEmpty ?? false) ? post.categories!.first.name : '';
 
-    final coverImage = ClipRect(
-      child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: post.cover.isEmpty
-            ? Container(
-                color: dark ? MmtColors.ink800 : MmtColors.chipBg,
-                child: const Icon(Icons.article_rounded, size: 36),
-              )
-            : CachedNetworkImage(
-                imageUrl: post.cover,
-                fit: BoxFit.cover,
-                placeholder: (ctx, _) => Container(
-                  color: dark ? MmtColors.ink800 : MmtColors.chipBg,
-                  child: const Center(child: SizedBox.shrink()),
-                ),
-                errorWidget: (ctx, _, __) => Container(
-                  color: dark ? MmtColors.ink800 : MmtColors.chipBg,
-                  child: const Icon(Icons.broken_image_rounded),
-                ),
-              ),
-      ),
-    );
-
     final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: const BoxDecoration(
@@ -144,49 +121,106 @@ class NewsCardVertical extends StatelessWidget {
       splashFactory: NoSplash.splashFactory,
       hoverColor: Colors.transparent,
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.transparent,
+        decoration: BoxDecoration(
+          color: dark ? MmtColors.ink900 : Colors.white,
+          border: const Border.fromBorderSide(
+            BorderSide(color: MmtColors.ink950, width: 2),
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: MmtColors.ink950,
+              offset: Offset(4, 4),
+              blurRadius: 0,
+            ),
+          ],
         ),
+        clipBehavior: Clip.hardEdge,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              decoration: const BoxDecoration(
-                border: Border.fromBorderSide(
-                  BorderSide(color: MmtColors.ink950, width: 2),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: MmtColors.ink950,
-                    offset: Offset(4, 4),
-                    blurRadius: 0,
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  coverImage,
-                  Padding(
-                    padding: EdgeInsets.all(compact ? 12 : 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (showCategory && catName.isNotEmpty) ...[
-                          chip,
-                          const SizedBox(height: 12),
-                        ],
-                        title,
-                        if (!compact && excerptText != null) ...[
-                          const SizedBox(height: 10),
-                          excerptText,
-                        ],
-                        const SizedBox(height: 14),
-                        meta,
-                      ],
+            AspectRatio(
+              aspectRatio: compact ? (4 / 3) : (16 / 9),
+              child: post.cover.isEmpty
+                  ? Container(
+                      color: dark ? MmtColors.ink800 : MmtColors.chipBg,
+                      child: const Icon(Icons.article_rounded, size: 36),
+                    )
+                  : CachedNetworkImage(
+                      imageUrl: post.cover,
+                      fit: BoxFit.cover,
+                      placeholder: (ctx, _) => Container(
+                        color: dark ? MmtColors.ink800 : MmtColors.chipBg,
+                      ),
+                      errorWidget: (ctx, _, __) => Container(
+                        color: dark ? MmtColors.ink800 : MmtColors.chipBg,
+                        child: const Icon(Icons.broken_image_rounded),
+                      ),
                     ),
-                  ),
-                ],
+            ),
+            Expanded(
+              child: Container(
+                constraints: BoxConstraints(minHeight: compact ? 78 : 110),
+                padding: EdgeInsets.all(compact ? 10 : 16),
+                color: dark ? MmtColors.ink900 : Colors.white,
+                child: compact
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (showCategory && catName.isNotEmpty) ...[
+                            Text(
+                              catName.toUpperCase(),
+                              style: GoogleFonts.inter(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.0,
+                                height: 1.0,
+                                color: MmtColors.news,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                          ],
+                          Text(
+                            post.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.getFont(
+                              'Archivo Black',
+                              fontSize: 12,
+                              height: 1.18,
+                              letterSpacing: -0.05,
+                              fontWeight: FontWeight.w900,
+                              color: dark ? Colors.white : MmtColors.ink950,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Spacer(),
+                          Text(
+                            date,
+                            style: GoogleFonts.inter(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.1,
+                              color: dark ? Colors.white54 : MmtColors.textFaint,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (showCategory && catName.isNotEmpty) ...[
+                            chip,
+                            const SizedBox(height: 12),
+                          ],
+                          Flexible(fit: FlexFit.loose, child: title),
+                          if (excerptText != null) ...[
+                            const SizedBox(height: 10),
+                            Flexible(fit: FlexFit.loose, child: excerptText),
+                          ],
+                          const Spacer(),
+                          meta,
+                        ],
+                      ),
               ),
             ),
           ],

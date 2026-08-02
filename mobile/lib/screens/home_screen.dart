@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/env.dart';
 import '../core/theme/colors.dart';
 import '../core/l10n/dict.dart';
@@ -12,6 +13,8 @@ import '../core/widgets/brand.dart';
 import '../models/blog_models.dart';
 import '../providers/index.dart';
 import '../widgets/news_card.dart';
+import '../widgets/editorial_components.dart';
+import 'static_screens.dart' show kMmtSections, MmtSection, SectionTile;
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -30,12 +33,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     ref.invalidate(latestPostsProvider(1));
     ref.invalidate(shortsFeedProvider);
     ref.invalidate(categoriesProvider);
+    ref.invalidate(videoPostsProvider);
     await Future.wait(<Future<void>>[
       ref.read(featuredPostsProvider.future),
       ref.read(trendingPostsProvider.future),
       ref.read(latestPostsProvider(1).future),
       ref.read(shortsFeedProvider.future),
       ref.read(categoriesProvider.future),
+      ref.read(videoPostsProvider.future),
     ]);
   }
 
@@ -44,7 +49,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
         width: w,
         decoration: BoxDecoration(
           border: Border.all(color: MmtColors.ink700, width: 2),
-          color: MmtColors.ink600.withOpacity(0.15),
+          color: MmtColors.ink600.withValues(alpha: 0.15),
         ),
       );
 
@@ -55,12 +60,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
           decoration: BoxDecoration(
             border: Border.all(color: MmtColors.ink950, width: 2),
             color: MmtColors.news50,
-            boxShadow: const BoxShadow(offset: Offset(4, 4), color: MmtColors.ink950),
+            boxShadow: const [BoxShadow(offset: Offset(4, 4), color: MmtColors.ink950)],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('⚠ ${Dict.of(context).common.loadingError}', style: TextStyle(color: MmtColors.news700, fontWeight: FontWeight.w900, fontSize: 13)),
+              Text('⚠ ${Dict.of(context).common.loadingError}', style: const TextStyle(color: MmtColors.news700, fontWeight: FontWeight.w900, fontSize: 13)),
               const SizedBox(height: 6),
               Text(msg, style: const TextStyle(fontSize: 12, color: MmtColors.ink700, fontWeight: FontWeight.w600)),
               const SizedBox(height: 10),
@@ -71,10 +76,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
                   decoration: BoxDecoration(
                     border: Border.all(color: MmtColors.ink950, width: 2),
                     color: Colors.white,
-                    boxShadow: const BoxShadow(offset: Offset(3, 3), color: MmtColors.ink950),
+                    boxShadow: const [BoxShadow(offset: Offset(3, 3), color: MmtColors.ink950)],
                   ),
                   child: Text(Dict.of(context).common.retry.toUpperCase(),
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.4)),
+                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.4),),
                 ),
               ),
             ],
@@ -93,6 +98,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     final latest = ref.watch(latestPostsProvider(1));
     final shorts = ref.watch(shortsFeedProvider);
     final cats = ref.watch(categoriesProvider);
+    final videos = ref.watch(videoPostsProvider);
     final unread = ref.watch(unreadCountProvider);
 
     return RefreshIndicator(
@@ -102,10 +108,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
       strokeWidth: 3,
       child: CustomScrollView(
         slivers: [
-          _buildSliverAppBar(dark, t, unread.value),
+          SliverToBoxAdapter(child: SizedBox(height: MediaQuery.of(context).padding.top + 2)),
           SliverToBoxAdapter(
             child: Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: MmtColors.news50,
                 border: Border(bottom: BorderSide(color: MmtColors.ink950, width: 2)),
               ),
@@ -113,7 +119,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SectionEyebrow(label: t.home.heroEyebrow),
+                  SectionEyebrow(t.home.heroEyebrow),
                   const SizedBox(height: 12),
                   Text(t.home.heroTitle,
                       style: GoogleFonts.archivoBlack(
@@ -121,18 +127,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
                         height: 1.02,
                         color: dark ? Colors.white : MmtColors.ink950,
                         letterSpacing: -0.4,
-                      )),
+                      ),),
                   const SizedBox(height: 10),
                   Text(t.home.heroBody, style: TextStyle(fontSize: 13, color: dark ? MmtColors.ink600 : MmtColors.ink700, height: 1.6, fontWeight: FontWeight.w500)),
                 ],
               ),
             ),
           ),
-          // Featured Reports
+          // Breaking News Banner (uses first trending or featured post)
+          trending.when(
+            loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
+            error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+            data: (list) {
+              if (list.isEmpty) {
+                return featured.when(
+                  loading: () => const SliverToBoxAdapter(child: SizedBox.shrink()),
+                  error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+                  data: (fl) => fl.isEmpty ? const SliverToBoxAdapter(child: SizedBox.shrink()) : SliverToBoxAdapter(
+                    child: BreakingBanner(headline: fl.first.title, publishedAt: fl.first.publishedAt, onTap: () => _openPost(context, fl.first)),
+                  ),
+                );
+              }
+              return SliverToBoxAdapter(
+                child: BreakingBanner(headline: list.first.title, publishedAt: list.first.publishedAt, onTap: () => _openPost(context, list.first)),
+              );
+            },
+          ),
+          // Featured Reports (Tier split: Hero + 2-col Secondary Grid)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(18, 24, 18, 6),
-              child: SectionEyebrow(label: t.home.featured),
+              child: SectionEyebrow(t.home.featured),
             ),
           ),
           featured.when(
@@ -145,24 +170,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
               ),
             ),
             error: (e, _) => SliverToBoxAdapter(child: _sectionErr(e.toString(), () => ref.invalidate(featuredPostsProvider))),
-            data: (list) => SliverPadding(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
-              sliver: SliverList.separated(
-                itemCount: list.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 14),
-                itemBuilder: (_, i) => NewsCardVertical(list[i], onTap: () => _openPost(context, list[i])),
-              ),
-            ),
+            data: (list) {
+              if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+              final rest = list.sublist(1);
+              return SliverPadding(
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 0),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate.fixed(<Widget>[
+                    HeroStoryCard(post: list[0], onTap: () => _openPost(context, list[0])),
+                    if (rest.isNotEmpty) ...[
+                      const SizedBox(height: 22),
+                      Row(
+                        children: [
+                          SectionEyebrow('Across Our Coverage'),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      for (int i = 0; i < rest.length && i < 4; i++) ...[
+                        NewsCardHorizontal(post: rest[i], onTap: () => _openPost(context, rest[i])),
+                      ],
+                    ],
+                  ]),
+                ),
+              );
+            },
           ),
-          // Trending Now
+          // Trending Now (Text only list rows with index)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(18, 28, 18, 10),
               child: Row(
                 children: [
-                  SectionEyebrow(label: t.home.trending),
+                  SectionEyebrow(t.home.trending),
                   const Spacer(),
-                  Icon(FontAwesomeIcons.fire, size: 16, color: MmtColors.news),
+                  const FaIcon(FontAwesomeIcons.fire, size: 16, color: MmtColors.news),
                 ],
               ),
             ),
@@ -185,10 +226,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
                 padding: const EdgeInsets.fromLTRB(18, 0, 18, 0),
                 sliver: SliverList.separated(
                   itemCount: list.length > 6 ? 6 : list.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (_, i) => InkWell(
+                  separatorBuilder: (_, __) => const SizedBox(height: 2),
+                  itemBuilder: (_, i) => TextOnlyStoryRow(
+                    index: i + 1,
+                    post: list[i],
                     onTap: () => _openPost(context, list[i]),
-                    child: TrendingItem(i + 1, list[i]),
                   ),
                 ),
               );
@@ -198,7 +240,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(18, 28, 18, 10),
-              child: SectionEyebrow(label: t.home.latest),
+              child: SectionEyebrow(t.home.latest),
             ),
           ),
           latest.when(
@@ -209,46 +251,369 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
                 delegate: SliverChildBuilderDelegate((_, __) => _skel(180), childCount: 4),
               ),
             ),
-            error: (e, _) => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 18), child: _sectionErr(e.toString(), () => ref.invalidate(latestPostsProvider(1)))),
+            error: (e, _) => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 18), child: _sectionErr(e.toString(), () => ref.invalidate(latestPostsProvider(1))))),
             data: (list) => SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 18),
               sliver: SliverGrid(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 0.58),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 0.77),
                 delegate: SliverChildBuilderDelegate(
-                  (_, i) => NewsCardVertical(list[i], compact: true, onTap: () => _openPost(context, list[i])),
+                  (_, i) => NewsCardVertical(post: list[i], compact: true, onTap: () => _openPost(context, list[i])),
                   childCount: list.length > 12 ? 12 : list.length,
                 ),
               ),
             ),
           ),
-          // Categories
+          // For You (personalized picks — latest 4 + recently viewed signal)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 28, 18, 10),
+              child: Row(
+                children: [
+                  SectionEyebrow('For You'),
+                  const SizedBox(width: 10),
+                  FaIcon(FontAwesomeIcons.bolt, size: 14, color: MmtColors.news),
+                ],
+              ),
+            ),
+          ),
+          latest.when(
+            loading: () => SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 0.62),
+                delegate: SliverChildBuilderDelegate((_, __) => _skel(180), childCount: 4),
+              ),
+            ),
+            error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
+            data: (list) {
+              if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+              final picks = list.take(list.length > 4 ? 4 : list.length).toList(growable: false);
+              return SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 0.74),
+                  delegate: SliverChildBuilderDelegate(
+                    (_, i) => SecondaryGridCard(post: picks[i], onTap: () => _openPost(context, picks[i])),
+                    childCount: picks.length,
+                  ),
+                ),
+              );
+            },
+          ),
+          // ---------------- NEW: TOP SECTIONS GRID (with Explore More) ----------------
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 30, 18, 8),
+              child: Row(
+                children: [
+                  SectionEyebrow('Top Sections'),
+                  const SizedBox(width: 8),
+                  Text('8', style: GoogleFonts.getFont('Archivo Black', fontSize: 12, fontWeight: FontWeight.w900, color: MmtColors.ink700)),
+                  const Spacer(),
+                  InkWell(
+                    onTap: () => context.go('/categories'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Explore More', style: GoogleFonts.archivoBlack(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.8, color: MmtColors.news, decoration: TextDecoration.none)),
+                        const SizedBox(width: 4),
+                        const FaIcon(FontAwesomeIcons.arrowRightLong, size: 13, color: MmtColors.news),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 4),
+            sliver: SliverGrid(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 14,
+                crossAxisSpacing: 14,
+                childAspectRatio: 2.0,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (_, i) => SectionTile(s: kMmtSections[i], dark: dark),
+                childCount: kMmtSections.length,
+              ),
+            ),
+          ),
+          // ---------------- NEW: SHORTS HORIZONTAL ROW ----------------
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 26, 18, 8),
+              child: Row(
+                children: [
+                  SectionEyebrow('Shorts'),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: MmtColors.ink950, border: Border.all(color: MmtColors.ink950, width: 2), borderRadius: BorderRadius.circular(999)),
+                    child: const FaIcon(FontAwesomeIcons.bolt, size: 11, color: MmtColors.news),
+                  ),
+                  const Spacer(),
+                  InkWell(
+                    onTap: () {
+                      // Since shorts is page 1 of home shell PageView, we need to communicate up.
+                      // Fallback: also go /shorts route (which has same ShortsFeed)
+                      context.go('/shorts');
+                    },
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Explore More', style: GoogleFonts.archivoBlack(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.8, color: MmtColors.news, decoration: TextDecoration.none)),
+                        const SizedBox(width: 4),
+                        const FaIcon(FontAwesomeIcons.arrowRightLong, size: 13, color: MmtColors.news),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          shorts.when(
+            loading: () => SliverToBoxAdapter(
+              child: SizedBox(height: 210, child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                scrollDirection: Axis.horizontal,
+                itemCount: 4,
+                separatorBuilder: (_, __) => const SizedBox(width: 14),
+                itemBuilder: (_, __) => _skel(210, w: 140),
+              )),
+            ),
+            error: (e, _) => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 18), child: _sectionErr(e.toString(), () => ref.invalidate(shortsFeedProvider)))),
+            data: (list) {
+              if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+              final preview = list.take(list.length > 5 ? 5 : list.length).toList();
+              return SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 230,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: preview.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 14),
+                    itemBuilder: (_, i) {
+                      final s = preview[i];
+                      return SizedBox(
+                        width: 150,
+                        child: InkWell(
+                          onTap: () {
+                            // Deep open: full shorts route + index.
+                            context.go('/shorts');
+                          },
+                          borderRadius: BorderRadius.circular(18),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              color: dark ? MmtColors.ink800 : MmtColors.chipBg,
+                              border: Border.all(color: MmtColors.ink950, width: 2),
+                              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
+                              image: s.cover.isNotEmpty ? DecorationImage(image: NetworkImage(s.cover), fit: BoxFit.cover) : null,
+                            ),
+                            child: Stack(
+                              children: [
+                                Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Colors.black.withValues(alpha: 0.1), Colors.black.withValues(alpha: 0.82)]))),
+                                Positioned(
+                                  top: 10, right: 10,
+                                  child: Container(
+                                    width: 34, height: 34,
+                                    decoration: BoxDecoration(shape: BoxShape.circle, color: MmtColors.news.withValues(alpha: 0.95), border: Border.all(color: Colors.white, width: 1)),
+                                    child: const Center(child: FaIcon(FontAwesomeIcons.play, size: 12, color: Colors.white)),
+                                  ),
+                                ),
+                                Positioned(
+                                  bottom: 10, left: 10, right: 10,
+                                  child: Text(
+                                    s.title,
+                                    style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w800, height: 1.3),
+                                    maxLines: 3, overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+          // ---------------- NEW: VIDEOS HORIZONTAL ROW ----------------
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(18, 26, 18, 8),
+              child: Row(
+                children: [
+                  SectionEyebrow('Videos'),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: Colors.white, border: Border.all(color: MmtColors.ink950, width: 2), borderRadius: BorderRadius.circular(999)),
+                    child: const FaIcon(FontAwesomeIcons.youtube, size: 11, color: Color(0xFFFF0000)),
+                  ),
+                  const Spacer(),
+                  InkWell(
+                    onTap: () => context.go('/videos'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Explore More', style: GoogleFonts.archivoBlack(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.8, color: MmtColors.news, decoration: TextDecoration.none)),
+                        const SizedBox(width: 4),
+                        const FaIcon(FontAwesomeIcons.arrowRightLong, size: 13, color: MmtColors.news),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          videos.when(
+            loading: () => SliverToBoxAdapter(
+              child: SizedBox(height: 230, child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                scrollDirection: Axis.horizontal,
+                itemCount: 4,
+                separatorBuilder: (_, __) => const SizedBox(width: 16),
+                itemBuilder: (_, __) => _skel(230, w: 270),
+              )),
+            ),
+            error: (e, _) => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 18), child: _sectionErr(e.toString(), () => ref.invalidate(videoPostsProvider)))),
+            data: (list) {
+              if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
+              final preview = list.take(list.length > 5 ? 5 : list.length).toList();
+              return SliverToBoxAdapter(
+                child: SizedBox(
+                  height: 285,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: preview.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 16),
+                    itemBuilder: (_, i) {
+                      final p = preview[i];
+                      return SizedBox(
+                        width: 300,
+                        child: InkWell(
+                          onTap: () => context.push('/article/${p.slug}?id=${p.id}'),
+                          borderRadius: BorderRadius.circular(18),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(18),
+                              color: dark ? MmtColors.ink800 : Colors.white,
+                              border: Border.all(color: MmtColors.ink950, width: 2),
+                              boxShadow: const [BoxShadow(color: Colors.black, offset: Offset(4, 4), blurRadius: 0)],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Stack(
+                                  children: [
+                                    AspectRatio(
+                                      aspectRatio: 16 / 9,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: MmtColors.ink600.withValues(alpha: 0.25),
+                                          image: p.cover.isNotEmpty ? DecorationImage(image: NetworkImage(p.cover), fit: BoxFit.cover, onError: (_, __) {}) : null,
+                                        ),
+                                      ),
+                                    ),
+                                    Positioned.fill(child: Center(
+                                      child: Container(
+                                        width: 50, height: 50,
+                                        decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFFFF0000).withValues(alpha: 0.95), border: Border.all(color: Colors.white, width: 2), boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 12)]),
+                                        child: const Center(child: FaIcon(FontAwesomeIcons.play, size: 17, color: Colors.white)),
+                                      ),
+                                    )),
+                                  ],
+                                ),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+                                    child: Text(
+                                      p.title,
+                                      style: GoogleFonts.getFont('Archivo Black', fontSize: 13, fontWeight: FontWeight.w900, height: 1.25, color: dark ? Colors.white : MmtColors.ink950),
+                                      maxLines: 2, overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                        decoration: BoxDecoration(color: MmtColors.news50, border: Border.all(color: MmtColors.ink950, width: 1.5), borderRadius: BorderRadius.circular(999)),
+                                        child: const Text('VIDEO', style: TextStyle(color: MmtColors.news, fontWeight: FontWeight.w900, fontSize: 9.5, letterSpacing: 0.8)),
+                                      ),
+                                      const Spacer(),
+                                      if (p.publishedAt != null)
+                                        Text(
+                                          '${p.publishedAt!.day.toString().padLeft(2,'0')} ${['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][p.publishedAt!.month-1]}',
+                                          style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: MmtColors.ink700),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+          // Categories — horizontal scroll rail (with Explore More)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(18, 28, 18, 12),
-              child: SectionEyebrow(label: t.home.categories),
+              child: Row(
+                children: [
+                  SectionEyebrow(t.home.categories),
+                  const Spacer(),
+                  InkWell(
+                    onTap: () => context.go('/categories'),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Explore More', style: GoogleFonts.archivoBlack(fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 0.8, color: MmtColors.news, decoration: TextDecoration.none)),
+                        const SizedBox(width: 4),
+                        const FaIcon(FontAwesomeIcons.arrowRightLong, size: 13, color: MmtColors.news),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           cats.when(
             loading: () => SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 18), child: Wrap(spacing: 8, runSpacing: 8, children: List<Widget>.generate(6, (i) => _skel(28, w: 80))))),
             error: (e, _) => const SliverToBoxAdapter(child: SizedBox.shrink()),
             data: (list) => SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: list
-                      .asMap()
-                      .entries
-                      .map((e) => MmtChip(
-                            label: e.value.name,
-                            selected: e.key == 0,
-                            onTap: () {
-                              final slug = e.value.slug;
-                              if (slug != null) context.push('/category/$slug');
-                            },
-                          ))
-                      .toList(growable: false),
+              child: SizedBox(
+                height: 44,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  itemCount: list.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) => MmtChip(
+                    label: list[i].name,
+                    selected: i == 0,
+                    onTap: () {
+                      final slug = list[i].slug;
+                      context.push('/category/$slug');
+                    },
+                  ),
                 ),
               ),
             ),
@@ -268,7 +633,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SectionEyebrow(label: t.footer.followUs),
+                  SectionEyebrow(t.footer.followUs),
                   const SizedBox(height: 16),
                   Text(t.footer.mission, style: TextStyle(fontSize: 12.5, color: dark ? MmtColors.ink600 : MmtColors.ink700, height: 1.7, fontWeight: FontWeight.w500)),
                   const SizedBox(height: 18),
@@ -287,7 +652,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
                   ),
                   const SizedBox(height: 22),
                   Text('© ${DateTime.now().year} MAPMYTOUR LLP, India · ${t.footer.copyright}',
-                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: MmtColors.ink600)),
+                      style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: MmtColors.ink600),),
                 ],
               ),
             ),
@@ -298,10 +663,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     );
   }
 
-  Widget _socBtn(IconData ic, String url) {
+  Widget _socBtn(FaIconData ic, String url) {
     return InkWell(
       onTap: () async {
-        try { await Env.launchUrlExternal(url); } catch (_) {}
+        try { await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication); } catch (_) {}
       },
       child: Container(
         width: 36,
@@ -347,9 +712,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.search, size: 16, color: MmtColors.ink700),
+                    const Icon(Icons.search, size: 16, color: MmtColors.ink700),
                     const SizedBox(width: 8),
-                    Text(t.nav.search, style: TextStyle(fontSize: 12, color: MmtColors.ink600, fontWeight: FontWeight.w600)),
+                    Text(t.nav.search, style: const TextStyle(fontSize: 12, color: MmtColors.ink600, fontWeight: FontWeight.w600)),
                   ],
                 ),
               ),
@@ -358,13 +723,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
             InkWell(
               onTap: () {
                 final s = LangScope.of(context);
-                LangScope.ofState(context).toggle();
+                LangScope.toggle(context);
                 final newT = Dict.of(context);
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   backgroundColor: MmtColors.ink950,
                   content: Text(newT.common.languageSwitched, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
                   duration: const Duration(milliseconds: 1200),
-                ));
+                ),);
+                }
               },
               child: Container(
                 width: 48,
@@ -372,7 +739,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
                 alignment: Alignment.center,
                 decoration: BoxDecoration(color: MmtColors.news, border: Border.all(color: MmtColors.ink950, width: 2)),
                 child: Text(LangScope.codeOf(context).name.toUpperCase(),
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.white, letterSpacing: 0.6)),
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.white, letterSpacing: 0.6),),
               ),
             ),
           ],
@@ -384,10 +751,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
   void _openPost(BuildContext ctx, BlogPostSummaryResponse p) {
     final PostType type = p.postType ?? PostType.article;
     if (type == PostType.short) {
-      ctx.push('/shorts${p.slug != null ? '?startSlug=${Uri.encodeQueryComponent(p.slug!)}' : (p.id != null ? '?startId=${Uri.encodeQueryComponent(p.id!)}' : '')}');
+      ctx.push('/shorts-player${'?startSlug=${Uri.encodeQueryComponent(p.slug)}'}');
     } else {
       final sp = <String, String>{};
-      if (p.id != null) sp['id'] = p.id!;
+      sp['id'] = p.id;
       ctx.push('/article/${Uri.encodeQueryComponent(p.slug ?? p.id ?? '')}', extra: sp.isEmpty ? null : sp);
     }
   }

@@ -126,7 +126,7 @@ class _ShortTile extends StatelessWidget {
       children: [
         // Cover
         Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [MmtColors.ink950, MmtColors.news800, MmtColors.news700],
               begin: Alignment.topCenter,
@@ -143,7 +143,7 @@ class _ShortTile extends StatelessWidget {
         ),
         // Gradient text overlay
         Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [Colors.transparent, Colors.black54, Colors.black87],
               begin: Alignment.topCenter,
@@ -314,7 +314,7 @@ class _ShortsError extends StatelessWidget {
                   decoration: BoxDecoration(
                     border: Border.all(color: MmtColors.ink950, width: 2),
                     color: Colors.white,
-                    boxShadow: const BoxShadow(offset: Offset(3, 3), color: MmtColors.ink950),
+                    boxShadow: const [BoxShadow(offset: Offset(3, 3), color: MmtColors.ink950)],
                   ),
                   child: Text(
                     t.common.retry.toUpperCase(),

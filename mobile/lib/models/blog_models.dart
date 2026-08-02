@@ -5,6 +5,7 @@
 // =============================================================================
 
 import 'package:flutter/foundation.dart';
+import '../core/env.dart';
 
 typedef ID = String;
 
@@ -26,7 +27,7 @@ class APIResponse<T> {
     return APIResponse<T>(
       success: json['success'] as bool?,
       message: json['message'] as String?,
-      code: (json['code'] as num?)?.toInt(),
+      code: (json['statusCode'] as num?)?.toInt() ?? (json['code'] as num?)?.toInt(),
       data: json['data'] == null ? null : dataParser(json['data']),
     );
   }
@@ -53,14 +54,17 @@ class PaginatedResponse<T> {
     Map<String, dynamic> json,
     T Function(Object? json) itemParser,
   ) {
-    final list = (json['items'] as List<dynamic>?) ?? <dynamic>[];
+    final list = (json['content'] as List<dynamic>?) ??
+        (json['items'] as List<dynamic>?) ??
+        <dynamic>[];
     return PaginatedResponse<T>(
       items: list.map((e) => itemParser(e)).toList(growable: false),
       page: (json['page'] as num?)?.toInt() ?? 1,
       size: (json['size'] as num?)?.toInt() ?? 20,
-      total: (json['total'] as num?)?.toInt(),
+      total: (json['totalElements'] as num?)?.toInt() ??
+          (json['total'] as num?)?.toInt(),
       totalPages: (json['totalPages'] as num?)?.toInt(),
-      hasMore: json['hasMore'] as bool?,
+      hasMore: json['last'] == true ? false : (json['hasMore'] as bool?),
     );
   }
 }
@@ -95,9 +99,11 @@ PostType postTypeFromString(String? s) {
     case 'video':
       return PostType.video;
     case 'short':
+    case 'story':
       return PostType.short;
     case 'page':
       return PostType.page;
+    case 'blog':
     case 'article':
     default:
       return PostType.article;
@@ -217,6 +223,7 @@ class BlogPostSummaryResponse {
   final String? featuredImageUrl;
   final String? videoUrl;
   final String? shortVideoUrl;
+  final String? sectionSlug;
   final AuthorResponse? author;
   final List<CategoryResponse>? categories;
   final List<TagResponse>? tags;
@@ -241,6 +248,7 @@ class BlogPostSummaryResponse {
     this.featuredImageUrl,
     this.videoUrl,
     this.shortVideoUrl,
+    this.sectionSlug,
     this.author,
     this.categories,
     this.tags,
@@ -258,58 +266,117 @@ class BlogPostSummaryResponse {
     this.updatedAt,
   });
 
-  String get cover => featuredImageUrl ?? '';
-  String get shortVideo => shortVideoUrl ?? videoUrl ?? '';
+  String get cover => Env.resolveImgUrl(featuredImageUrl ?? YouTubeUtil.thumbnailFor(videoUrl ?? shortVideoUrl));
+  String get shortVideo => Env.resolveImgUrl(shortVideoUrl ?? videoUrl);
+  String? get youtubeVideoId => YouTubeUtil.extractVideoId(videoUrl ?? shortVideoUrl);
 
   factory BlogPostSummaryResponse.fromJson(Map<String, dynamic> j) {
     DateTime? tryDt(Object? v) {
       if (v == null) return null;
       if (v is String) return DateTime.tryParse(v);
+      if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+      return null;
+    }
+    String? str(Object? v) {
+      if (v == null) return null;
+      if (v is String) return v.isEmpty ? null : v;
+      return v.toString();
+    }
+    int? toInt(Object? v) {
+      if (v == null) return null;
+      if (v is num) return v.toInt();
+      final s = v.toString();
+      return int.tryParse(s);
+    }
+    bool toBool(Object? v, {bool fallback = false}) {
+      if (v == null) return fallback;
+      if (v is bool) return v;
+      if (v is num) return v != 0;
+      final s = v.toString().toLowerCase();
+      if (s == 'true' || s == '1' || s == 'yes') return true;
+      if (s == 'false' || s == '0' || s == 'no') return false;
+      return fallback;
+    }
+    String? imageFrom(Object? v) {
+      final s = str(v);
+      if (s != null) return s;
+      if (v is Map<String, dynamic>) {
+        return str(v['url']) ?? str(v['mediaUrl']) ?? str(v['fileUrl']) ?? str(v['imageUrl']) ?? str(v['src']);
+      }
       return null;
     }
 
+    String slugify(String s) => s
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+
     AuthorResponse? a;
-    if (j['author'] != null && j['author'] is Map) {
-      a = AuthorResponse.fromJson(Map<String, dynamic>.from(j['author'] as Map));
+    if (j['author'] != null) {
+      if (j['author'] is Map) {
+        a = AuthorResponse.fromJson(Map<String, dynamic>.from(j['author'] as Map));
+      } else if (j['author'] is String) {
+        final s = j['author'] as String;
+        a = AuthorResponse(id: slugify(s), displayName: s);
+      }
+    } else {
+      final display = str(j['authorFirstName']) ?? str(j['authorName']) ?? str(j['authorDisplayName']) ?? str(j['userId']);
+      if (display != null) {
+        a = AuthorResponse(
+          id: str(j['authorId']) ?? str(j['userId']) ?? slugify(display),
+          displayName: display,
+          email: str(j['authorEmail']),
+        );
+      }
     }
 
     List<CategoryResponse>? cats;
     if (j['categories'] != null && j['categories'] is List) {
-      cats = (j['categories'] as List<dynamic>)
-          .map((e) => CategoryResponse.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList(growable: false);
+      cats = (j['categories'] as List<dynamic>).map((e) {
+        if (e is Map) {
+          return CategoryResponse.fromJson(Map<String, dynamic>.from(e as Map));
+        }
+        final s = e.toString();
+        final sl = slugify(s);
+        return CategoryResponse(id: sl, name: s, slug: sl);
+      }).toList(growable: false);
     }
     List<TagResponse>? tags;
     if (j['tags'] != null && j['tags'] is List) {
-      tags = (j['tags'] as List<dynamic>)
-          .map((e) => TagResponse.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList(growable: false);
+      tags = (j['tags'] as List<dynamic>).map((e) {
+        if (e is Map) {
+          return TagResponse.fromJson(Map<String, dynamic>.from(e as Map));
+        }
+        final s = e.toString();
+        final sl = slugify(s);
+        return TagResponse(id: sl, name: s, slug: sl);
+      }).toList(growable: false);
     }
 
     return BlogPostSummaryResponse(
-      id: j['id'].toString(),
-      title: (j['title'] as String?) ?? '',
-      slug: (j['slug'] as String?) ?? '',
-      excerpt: j['excerpt'] as String? ?? j['summary'] as String?,
-      featuredImageUrl:
-          j['featuredImageUrl'] as String? ?? j['featuredImage'] as String? ?? j['coverImage'] as String?,
-      videoUrl: j['videoUrl'] as String?,
-      shortVideoUrl: j['shortVideoUrl'] as String?,
+      id: str(j['id']) ?? '',
+      title: str(j['title']) ?? '',
+      slug: str(j['slug']) ?? '',
+      excerpt: str(j['excerpt']) ?? str(j['summary']) ?? str(j['description']),
+      featuredImageUrl: imageFrom(j['featuredImageUrl']) ?? imageFrom(j['featuredImage']) ?? imageFrom(j['coverImage']) ?? imageFrom(j['cover']),
+      videoUrl: imageFrom(j['videoUrl']) ?? imageFrom(j['video']) ?? imageFrom(j['primaryVideoUrl']),
+      shortVideoUrl: imageFrom(j['shortVideoUrl']) ?? imageFrom(j['shortVideo']) ?? imageFrom(j['shortsUrl']) ?? imageFrom(j['primaryVideoUrl']),
+      sectionSlug: str(j['sectionSlug']) ?? str(j['section_slug']),
       author: a,
       categories: cats,
       tags: tags,
-      status: statusFromString(j['status'] as String?),
-      postType: postTypeFromString(j['postType'] as String?),
-      language: (j['language'] as String?) ?? 'en',
-      readingTimeMinutes: (j['readingTimeMinutes'] as num?)?.toInt(),
-      viewCount: (j['viewCount'] as num?)?.toInt(),
-      likeCount: (j['likeCount'] as num?)?.toInt(),
-      commentCount: (j['commentCount'] as num?)?.toInt(),
-      isFeatured: (j['isFeatured'] as bool?) ?? false,
-      isTrending: (j['isTrending'] as bool?) ?? false,
-      publishedAt: tryDt(j['publishedAt']),
-      createdAt: tryDt(j['createdAt']),
-      updatedAt: tryDt(j['updatedAt']),
+      status: statusFromString(str(j['status'])),
+      postType: postTypeFromString(str(j['postType'])),
+      language: str(j['language']) ?? 'en',
+      readingTimeMinutes: toInt(j['readingTimeMinutes']) ?? toInt(j['readingTime']),
+      viewCount: toInt(j['viewCount']) ?? toInt(j['views']),
+      likeCount: toInt(j['likeCount']) ?? toInt(j['likes']),
+      commentCount: toInt(j['commentCount']) ?? toInt(j['comments']),
+      isFeatured: toBool(j['isFeatured']),
+      isTrending: toBool(j['isTrending']),
+      publishedAt: tryDt(j['publishedAt']) ?? tryDt(j['publishDate']),
+      createdAt: tryDt(j['createdAt']) ?? tryDt(j['createdDate']),
+      updatedAt: tryDt(j['updatedAt']) ?? tryDt(j['modifiedDate']),
     );
   }
 }
@@ -327,6 +394,7 @@ class BlogPostResponse extends BlogPostSummaryResponse {
     super.featuredImageUrl,
     super.videoUrl,
     super.shortVideoUrl,
+    super.sectionSlug,
     super.author,
     super.categories,
     super.tags,
@@ -352,8 +420,33 @@ class BlogPostResponse extends BlogPostSummaryResponse {
     List<BlogMedia>? medias;
     if (j['media'] != null && j['media'] is List) {
       medias = (j['media'] as List<dynamic>)
-          .map((e) => BlogMedia.fromJson(Map<String, dynamic>.from(e as Map)))
+          .where((e) => e != null && e is Map)
+          .map((e) {
+            try {
+              return BlogMedia.fromJson(Map<String, dynamic>.from(e as Map));
+            } catch (_) {
+              return BlogMedia(id: 'fallback-${identityHashCode(e)}');
+            }
+          })
           .toList(growable: false);
+      if (medias.isEmpty) medias = null;
+    }
+    String? asPlainText(Object? v) {
+      if (v == null) return null;
+      if (v is String) return v;
+      if (v is List) {
+        return v.map((e) {
+          if (e is String) return e;
+          if (e is Map && e['text'] is String) return e['text'] as String;
+          return '';
+        }).where((t) => t.isNotEmpty).join('\n');
+      }
+      if (v is Map) {
+        if (v['text'] is String) return v['text'] as String;
+        if (v['html'] is String) return v['html'] as String;
+        if (v['content'] is String) return v['content'] as String;
+      }
+      return v.toString();
     }
     return BlogPostResponse(
       id: s.id,
@@ -363,6 +456,7 @@ class BlogPostResponse extends BlogPostSummaryResponse {
       featuredImageUrl: s.featuredImageUrl,
       videoUrl: s.videoUrl,
       shortVideoUrl: s.shortVideoUrl,
+      sectionSlug: s.sectionSlug,
       author: s.author,
       categories: s.categories,
       tags: s.tags,
@@ -378,10 +472,123 @@ class BlogPostResponse extends BlogPostSummaryResponse {
       publishedAt: s.publishedAt,
       createdAt: s.createdAt,
       updatedAt: s.updatedAt,
-      content: j['content'] as String? ?? j['body'] as String?,
-      contentHtml: j['contentHtml'] as String? ?? j['bodyHtml'] as String?,
+      content: asPlainText(j['content']) ?? asPlainText(j['body']),
+      contentHtml: asPlainText(j['contentHtml']) ?? asPlainText(j['bodyHtml']) ?? asPlainText(j['content']),
       media: medias,
     );
+  }
+}
+
+// =============================================================================
+// Section
+// =============================================================================
+class SectionResponse {
+  final String id;
+  final String name;
+  final String slug;
+  final String? description;
+  final String? icon;
+  final String? accentColor;
+  final int? sortOrder;
+  final String? parentSectionId;
+  final int? postCount;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const SectionResponse({
+    required this.id,
+    required this.name,
+    required this.slug,
+    this.description,
+    this.icon,
+    this.accentColor,
+    this.sortOrder,
+    this.parentSectionId,
+    this.postCount,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory SectionResponse.fromJson(Map<String, dynamic> j) {
+    DateTime? tryDt(Object? v) {
+      if (v == null) return null;
+      if (v is String) return DateTime.tryParse(v);
+      if (v is int) return DateTime.fromMillisecondsSinceEpoch(v);
+      return null;
+    }
+    String? str(Object? v) {
+      if (v == null) return null;
+      if (v is String) return v.isEmpty ? null : v;
+      return v.toString();
+    }
+    int? toInt(Object? v) {
+      if (v == null) return null;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
+    }
+    return SectionResponse(
+      id: str(j['id']) ?? '',
+      name: (str(j['name']) ?? '').toUpperCase(),
+      slug: str(j['slug']) ?? '',
+      description: str(j['description']),
+      icon: str(j['icon']),
+      accentColor: str(j['accentColor']) ?? str(j['accent_color']),
+      sortOrder: toInt(j['sortOrder']) ?? toInt(j['sort_order']),
+      parentSectionId: str(j['parentSectionId']) ?? str(j['parent_section_id']),
+      postCount: toInt(j['postCount']),
+      createdAt: tryDt(j['createdAt']),
+      updatedAt: tryDt(j['updatedAt']),
+    );
+  }
+}
+
+// =============================================================================
+// YouTube URL helpers
+// =============================================================================
+class YouTubeUtil {
+  YouTubeUtil._();
+
+  static String? extractVideoId(String? url) {
+    if (url == null || url.isEmpty) return null;
+    final u = url.trim();
+    final m1 = RegExp(r'youtu\.be\/([a-zA-Z0-9_-]{6,})').firstMatch(u);
+    if (m1 != null && m1.groupCount >= 1) return m1.group(1);
+    final m2 = RegExp(r'[?&]v=([a-zA-Z0-9_-]{6,})').firstMatch(u);
+    if (m2 != null && m2.groupCount >= 1) return m2.group(1);
+    final m3 = RegExp(r'embed\/([a-zA-Z0-9_-]{6,})').firstMatch(u);
+    if (m3 != null && m3.groupCount >= 1) return m3.group(1);
+    final m4 = RegExp(r'shorts\/([a-zA-Z0-9_-]{6,})').firstMatch(u);
+    if (m4 != null && m4.groupCount >= 1) return m4.group(1);
+    return null;
+  }
+
+  static String? thumbnailFor(String? url, {String quality = 'hqdefault'}) {
+    final id = extractVideoId(url);
+    if (id == null) return null;
+    return 'https://img.youtube.com/vi/$id/$quality.jpg';
+  }
+
+  static String iframeEmbed(String videoId, {bool autoplay = false}) {
+    final params = <String>[
+      if (autoplay) 'autoplay=1',
+      'rel=0',
+      'modestbranding=1',
+      'playsinline=1',
+    ].join('&');
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html,body{margin:0;padding:0;height:100%;background:#000;overflow:hidden;}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+</head>
+<body>
+<iframe src="https://www.youtube.com/embed/$videoId?$params" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>
+</body>
+</html>''';
   }
 }
 
@@ -410,8 +617,8 @@ class BlogMedia {
 
   factory BlogMedia.fromJson(Map<String, dynamic> j) => BlogMedia(
         id: j['id'].toString(),
-        url: j['url'] as String? ?? j['fileUrl'] as String?,
-        mimeType: j['mimeType'] as String? ?? j['type'] as String?,
+        url: j['url'] as String? ?? j['fileUrl'] as String? ?? j['mediaUrl'] as String?,
+        mimeType: j['mimeType'] as String? ?? j['type'] as String? ?? j['mediaType'] as String?,
         sizeBytes: (j['sizeBytes'] as num?)?.toInt(),
         caption: j['caption'] as String?,
         width: (j['width'] as num?)?.toInt(),

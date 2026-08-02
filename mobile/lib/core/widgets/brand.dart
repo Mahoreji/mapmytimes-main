@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'colors.dart';
+import '../theme/colors.dart';
 
 /// Common brand widgets:
 ///   * Brand logo (text + optional red square mark, fallback until we add raster icon)
@@ -11,8 +11,9 @@ class BrandWidgets {
   BrandWidgets._();
 }
 
-/// Typographic mapmytimes mark — works without raster assets.
-/// Replace with real logo png (assets/icons/logo.png) once added.
+/// Raster mapmytimes brand logo loaded from assets/icons/mapmytimes-logo.png.
+/// Falls back to the legacy typographic mark (red "M" square + text) if the
+/// asset cannot be loaded at runtime, so the UI never shows a blank gap.
 class BrandLogo extends StatelessWidget {
   final double size;
   final bool invert;
@@ -23,6 +24,54 @@ class BrandLogo extends StatelessWidget {
     this.invert = false,
     this.showTagline = false,
   });
+
+  static const _asset = 'assets/icons/mapmytimes-logo.png';
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = invert ? Colors.white : MmtColors.ink950;
+    final tagline = showTagline
+        ? Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              'JOURNALISM · OF · INTEGRITY',
+              style: TextStyle(
+                fontSize: size * 0.42,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.4,
+                color: fg.withValues(alpha: invert ? 0.75 : 0.65),
+                fontFamily: 'Inter',
+                height: 1.0,
+              ),
+            ),
+          )
+        : null;
+
+    final image = Image.asset(
+      _asset,
+      height: size,
+      excludeFromSemantics: true,
+      filterQuality: FilterQuality.high,
+      isAntiAlias: true,
+      errorBuilder: (_, __, ___) => _TypographicFallback(size: size, invert: invert),
+      color: invert ? Colors.white : null,
+      colorBlendMode: invert ? BlendMode.srcIn : null,
+    );
+
+    if (tagline == null) return image;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [image, tagline],
+    );
+  }
+}
+
+/// Fallback rendered when assets/icons/mapmytimes-logo.png is unavailable.
+class _TypographicFallback extends StatelessWidget {
+  final double size;
+  final bool invert;
+  const _TypographicFallback({required this.size, required this.invert});
 
   @override
   Widget build(BuildContext context) {
@@ -49,46 +98,20 @@ class BrandLogo extends StatelessWidget {
         ),
       ),
     );
-
-    final name = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          'MapMyTimes',
-          style: TextStyle(
-            fontSize: size,
-            fontWeight: FontWeight.w900,
-            fontFamily: 'Archivo Black',
-            color: fg,
-            height: 1.0,
-            letterSpacing: -0.6,
-          ),
-        ),
-        if (showTagline) ...[
-          const SizedBox(height: 4),
-          Text(
-            'JOURNALISM · OF · INTEGRITY',
-            style: TextStyle(
-              fontSize: size * 0.42,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.4,
-              color: fg.withOpacity(invert ? 0.75 : 0.65),
-              fontFamily: 'Inter',
-              height: 1.0,
-            ),
-          ),
-        ],
-      ],
+    final name = Text(
+      'MapMyTimes',
+      style: TextStyle(
+        fontSize: size,
+        fontWeight: FontWeight.w900,
+        fontFamily: 'Archivo Black',
+        color: fg,
+        height: 1.0,
+        letterSpacing: -0.6,
+      ),
     );
-
     return Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        mark,
-        const SizedBox(width: 12),
-        name,
-      ],
+      children: [mark, const SizedBox(width: 12), name],
     );
   }
 }
@@ -126,7 +149,7 @@ class SectionEyebrow extends StatelessWidget {
             fontSize: 12,
             letterSpacing: 1.8,
             fontWeight: FontWeight.w900,
-            color: textColor ?? (dark ? Colors.white70 : MmtColors.textMuted),
+            color: textColor ?? (dark ? Colors.white : MmtColors.ink900),
             height: 1.0,
           ),
         ),

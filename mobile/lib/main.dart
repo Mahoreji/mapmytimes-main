@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -14,6 +16,10 @@ import 'package:mapmytimes/screens/news_article_screen.dart';
 import 'package:mapmytimes/screens/shorts_feed.dart';
 import 'package:mapmytimes/screens/static_screens.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// Flutter Web Path-URL strategy (instead of Hash #/) for clean URLs + deep links.
+// ignore: depend_on_referenced_packages
+import 'package:flutter_web_plugins/url_strategy.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey =
     GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -82,11 +88,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/news',
-            name: 'news-root',
-            pageBuilder: (context, state) => NoTransitionPage<void>(
-              key: state.pageKey,
-              child: const NewsListScreen(),
-            ),
+            name: 'news',
+            redirect: (BuildContext ctx, GoRouterState st) => '/',
           ),
           GoRoute(
             path: '/videos',
@@ -99,9 +102,46 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/menu',
             name: 'menu',
+            redirect: (BuildContext ctx, GoRouterState st) => '/profile',
+          ),
+          GoRoute(
+            path: '/shorts',
+            name: 'shorts-shell',
             pageBuilder: (context, state) => NoTransitionPage<void>(
               key: state.pageKey,
-              child: const MenuScreen(),
+              child: const ShortsFeedScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/search',
+            name: 'search-shell',
+            pageBuilder: (context, state) => NoTransitionPage<void>(
+              key: state.pageKey,
+              child: const SearchScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/saved',
+            name: 'saved',
+            pageBuilder: (context, state) => NoTransitionPage<void>(
+              key: state.pageKey,
+              child: const SavedScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/categories',
+            name: 'categories',
+            pageBuilder: (context, state) => NoTransitionPage<void>(
+              key: state.pageKey,
+              child: const ExploreCategoriesScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/profile',
+            name: 'profile',
+            pageBuilder: (context, state) => NoTransitionPage<void>(
+              key: state.pageKey,
+              child: const ProfileScreen(),
             ),
           ),
         ],
@@ -119,8 +159,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       GoRoute(
-        path: '/shorts',
-        name: 'shorts-feed',
+        path: '/shorts-player',
+        name: 'shorts-fullscreen',
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) {
           final startId = state.uri.queryParameters['startId'];
@@ -136,12 +176,25 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/search',
-        name: 'search',
+        path: '/category/:slug',
+        name: 'category-feed',
         parentNavigatorKey: _rootNavigatorKey,
         pageBuilder: (context, state) => MaterialPage<void>(
           key: state.pageKey,
-          child: const SearchScreen(),
+          child: CategoryFeedScreen(
+            slug: state.pathParameters['slug']!,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/section/:slug',
+        name: 'section-feed',
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) => MaterialPage<void>(
+          key: state.pageKey,
+          child: SectionFeedScreen(
+            slug: state.pathParameters['slug']!,
+          ),
         ),
       ),
       GoRoute(
@@ -252,6 +305,38 @@ Future<void> main() async {
   runZonedGuarded<Future<void>>(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
+    // --- PRODUCTION ERROR SHIELDS: No yellow/black overflow stripes in Release mode ---
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      final bool isDebug = kDebugMode;
+      FlutterError.dumpErrorToConsole(details, forceReport: isDebug);
+      if (!kReleaseMode) {
+        return ErrorWidget.withDetails(message: 'Error: ${details.exception}');
+      }
+      return Material(
+        color: MmtColors.chipBg,
+        child: Center(
+          child: Icon(Icons.newspaper_rounded, size: 40, color: MmtColors.news.withValues(alpha: 0.65)),
+        ),
+      );
+    };
+    FlutterError.onError = (FlutterErrorDetails details) {
+      if (kReleaseMode) {
+        FlutterError.dumpErrorToConsole(details, forceReport: false);
+      } else {
+        FlutterError.presentError(details);
+      }
+    };
+    PlatformDispatcher.instance.onError = (Object error, StackTrace stack) {
+      debugPrint('PLATFORM error: $error\n$stack');
+      return true;
+    };
+
+    // Use clean path-style URLs on Web (no /#/ hash fragment).
+    // IMPORTANT: This also ensures deep links + browser refresh on any path works.
+    if (kIsWeb) {
+      usePathUrlStrategy();
+    }
+
     await SystemChrome.setPreferredOrientations(<DeviceOrientation>[
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -264,7 +349,7 @@ Future<void> main() async {
       systemNavigationBarColor: MmtColors.ink950,
       systemNavigationBarIconBrightness: Brightness.light,
       systemNavigationBarDividerColor: Colors.transparent,
-    ));
+    ),);
 
     await Env.load();
 
@@ -316,18 +401,30 @@ class _MapMyTimesAppState extends ConsumerState<MapMyTimesApp> {
     });
   }
 
+  ThemeMode _toTheme(MmtThemeMode m) {
+    switch (m) {
+      case MmtThemeMode.light:
+        return ThemeMode.light;
+      case MmtThemeMode.dark:
+        return ThemeMode.dark;
+      case MmtThemeMode.system:
+        return ThemeMode.system;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final GoRouter router = ref.watch(routerProvider);
     final LangCode lang = LangScope.codeOf(context);
+    final MmtThemeMode mode = ref.watch(themeModeNotifierProvider);
 
     return MaterialApp.router(
       title: Env.appName,
       debugShowCheckedModeBanner: Env.isDebug,
       routerConfig: router,
-      theme: MmtTheme.build(),
-      darkTheme: MmtTheme.build(brightness: Brightness.dark),
-      themeMode: ThemeMode.light,
+      theme: MmtTheme.build(Brightness.light),
+      darkTheme: MmtTheme.build(Brightness.dark),
+      themeMode: _toTheme(mode),
       locale: Locale(lang.name),
       supportedLocales: const <Locale>[
         Locale('en'),

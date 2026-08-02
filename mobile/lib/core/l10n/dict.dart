@@ -2,30 +2,49 @@
 // (For simplicity we use simple Map<String,String> + InheritedWidget provider;
 //  if later needed, slang package can be enabled via build_runner.)
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 enum LangCode { en, hi }
 
 // ---------- Nested accessor classes (used as t.common.share, t.nav.shorts, etc) ----------
-class CommonDict {
-  final String share;
-  final String copyLink;
-  final String linkCopied;
-  final String refresh;
-  final String loadingError;
-  const CommonDict({
-    required this.share,
-    required this.copyLink,
-    required this.linkCopied,
-    required this.refresh,
-    required this.loadingError,
+class HomeDict {
+  final String heroEyebrow;
+  final String heroTitle;
+  final String heroBody;
+  final String featured;
+  final String trending;
+  final String latest;
+  final String categories;
+  const HomeDict({
+    required this.heroEyebrow,
+    required this.heroTitle,
+    required this.heroBody,
+    required this.featured,
+    required this.trending,
+    required this.latest,
+    required this.categories,
+  });
+}
+
+class FooterDict {
+  final String copyright;
+  final String followUs;
+  final String mission;
+  final String contactNewsroom;
+  final String joinAsJournalist;
+  const FooterDict({
+    required this.copyright,
+    required this.followUs,
+    required this.mission,
+    required this.contactNewsroom,
+    required this.joinAsJournalist,
   });
 }
 
 class NavDict {
   final String shorts;
-  const NavDict({required this.shorts});
+  final String search;
+  const NavDict({required this.shorts, required this.search});
 }
 
 class ShortsDict {
@@ -33,9 +52,23 @@ class ShortsDict {
   const ShortsDict({required this.empty});
 }
 
-class FooterDict {
-  final String copyright;
-  const FooterDict({required this.copyright});
+class CommonDict {
+  final String share;
+  final String copyLink;
+  final String linkCopied;
+  final String refresh;
+  final String retry;
+  final String loadingError;
+  final String languageSwitched;
+  const CommonDict({
+    required this.share,
+    required this.copyLink,
+    required this.linkCopied,
+    required this.refresh,
+    required this.retry,
+    required this.loadingError,
+    required this.languageSwitched,
+  });
 }
 
 // =============================================================================
@@ -46,7 +79,7 @@ class Dict {
   final String tagline;
 
   // Navbar / bottom nav
-  final String home;
+  final String navHome;
   final String news;
   final String videos;
   final String shorts;
@@ -109,7 +142,7 @@ class Dict {
 
   const Dict({
     required this.tagline,
-    required this.home,
+    required this.navHome,
     required this.news,
     required this.videos,
     required this.shorts,
@@ -163,14 +196,32 @@ class Dict {
         copyLink: 'Copy link',
         linkCopied: 'Link copied to clipboard',
         refresh: retry,
+        retry: retry,
         loadingError: somethingWentWrong,
+        languageSwitched: 'Language switched',
       );
 
-  NavDict get nav => NavDict(shorts: shorts);
+  HomeDict get home => HomeDict(
+        heroEyebrow: tagline,
+        heroTitle: heroTitle,
+        heroBody: heroBody,
+        featured: featuredReports,
+        trending: trendingNow,
+        latest: latestStories,
+        categories: categories,
+      );
+
+  NavDict get nav => NavDict(shorts: shorts, search: search);
 
   ShortsDict get shortsDict => ShortsDict(empty: noStoriesYet);
 
-  FooterDict get footer => FooterDict(copyright: copyright);
+  FooterDict get footer => FooterDict(
+        copyright: copyright,
+        followUs: followUs,
+        mission: mission,
+        contactNewsroom: contactNewsroom,
+        joinAsJournalist: joinAsJournalist,
+      );
 
   // ---------- String helpers ----------
   String copyrightYear(int year) => copyright.replaceAll('%YEAR%', year.toString());
@@ -183,7 +234,7 @@ class Dict {
 
 const Dict en = Dict(
   tagline: 'JOURNALISM OF INTEGRITY',
-  home: 'Home',
+  navHome: 'Home',
   news: 'News',
   videos: 'Videos',
   shorts: 'Shorts',
@@ -233,7 +284,7 @@ const Dict en = Dict(
 
 const Dict hi = Dict(
   tagline: 'ईमानदारी की पत्रकारिता',
-  home: 'होम',
+  navHome: 'होम',
   news: 'समाचार',
   videos: 'वीडियो',
   shorts: 'शॉर्ट्स',

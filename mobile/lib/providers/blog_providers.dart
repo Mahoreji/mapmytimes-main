@@ -9,6 +9,7 @@ import 'common_providers.dart';
 
 typedef PostList = List<BlogPostSummaryResponse>;
 typedef CatList = List<CategoryResponse>;
+typedef SectionList = List<SectionResponse>;
 
 // ----------------- Featured Reports (isFeatured=true, size 10) ----------------
 final featuredPostsProvider = FutureProvider.autoDispose<PostList>((ref) async {
@@ -59,14 +60,51 @@ final categoriesProvider = FutureProvider.autoDispose<CatList>((ref) async {
   return all;
 });
 
+// ----------------- Sections --------------------------------------------------
+final sectionsProvider = FutureProvider.autoDispose<SectionList>((ref) async {
+  final svc = ref.watch(blogServiceProvider);
+  try {
+    final all = await svc.sectionsList();
+    if (all.isNotEmpty) return all;
+  } catch (_) {}
+  return const <SectionResponse>[];
+});
+
+// ----------------- Posts by Section Slug -------------------------------------
+final sectionPostsProvider = FutureProvider.family.autoDispose<PostList, String>((ref, sectionSlug) async {
+  final svc = ref.watch(blogServiceProvider);
+  final res = await svc.postsList(sectionSlug: sectionSlug, page: 1, size: 30, status: 'PUBLISHED', sort: '-publishedAt');
+  return res.items;
+});
+
 // ----------------- Single post by slug or id ---------------------------------
+final postByIdProvider = FutureProvider.family.autoDispose<BlogPostResponse?, String>((ref, id) async {
+  final svc = ref.watch(blogServiceProvider);
+  try {
+    final r = await svc.postById(id);
+    if (r != null) return r;
+  } catch (e, st) {
+    print('postById PROVIDER id=$id ERROR: $e\n$st');
+  }
+  throw Exception('Could not load article by ID: $id');
+});
+
 final postBySlugProvider = FutureProvider.family.autoDispose<BlogPostResponse?, String>((ref, slug) async {
   final svc = ref.watch(blogServiceProvider);
   try {
-    return await svc.postBySlug(slug);
-  } catch (_) {}
+    final r = await svc.postBySlug(slug);
+    if (r != null) return r;
+  } catch (e, st) {
+    print('postBySlug PROVIDER slug=$slug ERROR: $e\n$st');
+  }
   // Try by ID if slug is actually UUID/ID
-  try { return await svc.postById(slug); } catch (_) { return null; }
+  try {
+    final r = await svc.postById(slug);
+    if (r != null) return r;
+  } catch (e, st) {
+    print('postById PROVIDER fallback slug=$slug ERROR: $e\n$st');
+  }
+  throw Exception('Could not load article (slug/ID: $slug)');
 });
 
 // ----------------- Search ----------------------------------------------------
