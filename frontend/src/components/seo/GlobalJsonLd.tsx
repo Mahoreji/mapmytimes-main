@@ -38,7 +38,7 @@ export function GlobalJsonLd() {
     ],
     sameAs: [
       "https://mapmytimes.com",
-      "https://www.mapmytour.in",
+      "https://www.mapmytimes.com",
     ],
     slogan: SITE.tagline,
     missionStatement:
