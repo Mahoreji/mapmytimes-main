@@ -469,6 +469,15 @@ public class BlogPostServiceImpl implements BlogPostService {
                         .collect(Collectors.toList());
             }
 
+            // Apply uniform filters: status + postType + userId + isFeatured + isTrending
+            allPosts = allPosts.stream()
+                    .filter(p -> request.getStatus() == null || request.getStatus().equalsIgnoreCase(p.getStatus()))
+                    .filter(p -> request.getPostType() == null || request.getPostType().equalsIgnoreCase(p.getPostType()))
+                    .filter(p -> request.getUserId() == null || request.getUserId().equals(p.getUserId()))
+                    .filter(p -> request.getIsFeatured() == null || request.getIsFeatured().equals(p.getIsFeatured()))
+                    .filter(p -> request.getIsTrending() == null || request.getIsTrending().equals(p.getIsTrending()))
+                    .collect(Collectors.toList());
+
             // Initialize lazy collections
             initializeLazyCollections(allPosts);
 
@@ -544,6 +553,18 @@ public class BlogPostServiceImpl implements BlogPostService {
         if (language != null) {
             List<BlogPost> filtered = blogPosts.getContent().stream()
                     .filter(p -> language.equalsIgnoreCase(p.getLanguage()))
+                    .collect(Collectors.toList());
+            blogPosts = new org.springframework.data.domain.PageImpl<>(filtered, pageable, filtered.size());
+        }
+
+        // Apply uniform filters: status + postType + userId + isFeatured + isTrending
+        {
+            List<BlogPost> filtered = blogPosts.getContent().stream()
+                    .filter(p -> request.getStatus() == null || request.getStatus().equalsIgnoreCase(p.getStatus()))
+                    .filter(p -> request.getPostType() == null || request.getPostType().equalsIgnoreCase(p.getPostType()))
+                    .filter(p -> request.getUserId() == null || request.getUserId().equals(p.getUserId()))
+                    .filter(p -> request.getIsFeatured() == null || request.getIsFeatured().equals(p.getIsFeatured()))
+                    .filter(p -> request.getIsTrending() == null || request.getIsTrending().equals(p.getIsTrending()))
                     .collect(Collectors.toList());
             blogPosts = new org.springframework.data.domain.PageImpl<>(filtered, pageable, filtered.size());
         }

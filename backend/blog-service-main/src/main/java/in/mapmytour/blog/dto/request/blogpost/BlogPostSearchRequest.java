@@ -19,6 +19,9 @@ public class BlogPostSearchRequest {
     private String sectionSlug;
     private String status;
     private String userId;
+    private String postType;
+    private Boolean isFeatured;
+    private Boolean isTrending;
     private String language;
     private Integer page;
     private Integer size;

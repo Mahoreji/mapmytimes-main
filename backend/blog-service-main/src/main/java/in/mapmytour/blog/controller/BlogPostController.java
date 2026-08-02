@@ -141,7 +141,13 @@ public class BlogPostController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String tag,
+            @RequestParam(required = false) String sectionSlug,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String postType,
+            @RequestParam(required = false) Boolean isFeatured,
+            @RequestParam(required = false) Boolean isTrending,
             @RequestParam(required = false) String language,
+            @RequestParam(required = false) String userId,
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -151,7 +157,13 @@ public class BlogPostController {
                 .keyword(keyword)
                 .categories(category != null ? List.of(category) : null)
                 .tags(tag != null ? List.of(tag) : null)
+                .sectionSlug(sectionSlug)
+                .status(status)
+                .postType(postType)
+                .isFeatured(isFeatured)
+                .isTrending(isTrending)
                 .language(language)
+                .userId(userId)
                 .page(page != null ? page : 0)
                 .size(size)
                 .sortBy(sortBy)
