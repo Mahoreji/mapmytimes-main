@@ -276,8 +276,8 @@ public class ApiGatewayServiceApplication {
 		}
 
 		log.info("   ✅ Gateway is ready to handle requests!");
-		log.info("   📧 For support: support@mapmytour.in");
-		log.info("   🌐 Website: https://mapmytour.in");
+		log.info("   📧 For support: support@mapmytimes.com");
+		log.info("   🌐 Website: https://mapmytimes.com");
 
 		log.info("\n🎉 MapMyTour API Gateway successfully started and ready for adventure! 🗺️✈️");
 	}

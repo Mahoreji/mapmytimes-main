@@ -18,8 +18,8 @@ public class CorsConfig implements WebMvcConfigurer {
         // uncomment and configure appropriately
         /*
         registry.addMapping("/**")
-                .allowedOriginPatterns("https://mapmytour.in", "https://www.mapmytour.in", "https://staging.mapmytour.in", "http://localhost:3000","http://localhost:3001","https://*.mapmytour.in")
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                .allowedOriginPatterns("https://mapmytimes.com", "https://www.mapmytimes.com", "https://staging.mapmytimes.com", "http://localhost:3000","http://localhost:3001","https://*.mapmytimes.com")
+                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
                 .allowedHeaders("*")
                 .allowCredentials(true)
                 .maxAge(3600);

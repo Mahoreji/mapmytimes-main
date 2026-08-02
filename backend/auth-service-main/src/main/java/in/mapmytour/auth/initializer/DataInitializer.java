@@ -32,7 +32,7 @@ public class DataInitializer implements CommandLineRunner {
                 List<User> dummyUsers = Arrays.asList(
                                 // Regular USER
                                 User.builder()
-                                                .email("user@mapmytour.in")
+                                                .email("user@mapmytimes.com")
                                                 .firstName("Map My Tour")
                                                 .lastName("User")
                                                 .password(commonPassword)
@@ -54,7 +54,7 @@ public class DataInitializer implements CommandLineRunner {
 
                                 // ADMIN user
                                 User.builder()
-                                                .email("admin@mapmytour.in")
+                                                .email("admin@mapmytimes.com")
                                                 .firstName("Map My Tour")
                                                 .lastName("Admin")
                                                 .password(commonPassword)
@@ -76,7 +76,7 @@ public class DataInitializer implements CommandLineRunner {
 
                                 // B2B user
                                 User.builder()
-                                                .email("b2b@mapmytour.in")
+                                                .email("b2b@mapmytimes.com")
                                                 .firstName("Map My Tour")
                                                 .lastName("Partner")
                                                 .password(commonPassword)

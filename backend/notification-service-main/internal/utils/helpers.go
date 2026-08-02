@@ -113,7 +113,7 @@ func ValidateEmailDomain(email string) bool {
 	// Check for common valid domains (you can extend this list)
 	validDomains := []string{
 		"gmail.com", "yahoo.com", "outlook.com", "hotmail.com",
-		"mapmytour.in", "example.com", "test.com",
+		"mapmytimes.com", "example.com", "test.com",
 	}
 	
 	domain = strings.ToLower(domain)

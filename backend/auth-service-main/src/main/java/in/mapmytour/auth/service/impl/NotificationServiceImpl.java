@@ -594,7 +594,7 @@ public class NotificationServiceImpl implements NotificationService {
                         <center class="wrapper">
                             <div class="main">
                                 <div class="header">
-                                    <img src="https://www.mapmytour.in/logo.svg" alt="Map My Tour" class="logo-img">
+                                    <img src="https://www.mapmytimes.com/logo.svg" alt="Map My Tour" class="logo-img">
                                 </div>
                                 <div class="content">
                                     <h2 class="title">Welcome to the Journey!</h2>
@@ -650,7 +650,7 @@ public class NotificationServiceImpl implements NotificationService {
                         <center class="wrapper">
                             <div class="main">
                                 <div class="header">
-                                    <img src="https://www.mapmytour.in/logo.svg" alt="Map My Tour" class="logo-img">
+                                    <img src="https://www.mapmytimes.com/logo.svg" alt="Map My Tour" class="logo-img">
                                 </div>
                                 <div class="content">
                                     <h2 class="title">Security Verification</h2>
@@ -708,7 +708,7 @@ public class NotificationServiceImpl implements NotificationService {
                         <center class="wrapper">
                             <div class="main">
                                 <div class="header">
-                                    <img src="https://www.mapmytour.in/logo.svg" alt="Map My Tour" class="logo-img">
+                                    <img src="https://www.mapmytimes.com/logo.svg" alt="Map My Tour" class="logo-img">
                                 </div>
                                 <div class="content">
                                     <h2 class="title">Password Reset Request</h2>

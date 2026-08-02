@@ -16,6 +16,7 @@ public class BlogPostSearchRequest {
     private String keyword;
     private List<String> categories;
     private List<String> tags;
+    private String sectionSlug;
     private String status;
     private String userId;
     private String language;

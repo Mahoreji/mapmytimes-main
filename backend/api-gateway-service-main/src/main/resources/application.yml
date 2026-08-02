@@ -90,9 +90,9 @@ spring:
       #       allowedOriginPatterns:
       #         - "http://localhost:3000"
       #         - "http://localhost:3001"
-      #         - "https://mapmytour.in"
-      #         - "https://www.mapmytour.in"
-      #         - "https://*.mapmytour.in"
+      #         - "https://mapmytimes.com"
+      #         - "https://www.mapmytimes.com"
+      #         - "https://*.mapmytimes.com"
       #       allowedMethods:
       #         - GET
       #         - POST
@@ -116,9 +116,9 @@ spring:
       #       allowedOriginPatterns:
       #         - "http://localhost:3000"
       #         - "http://localhost:3001"
-      #         - "https://mapmytour.in"
-      #         - "https://www.mapmytour.in"
-      #         - "https://*.mapmytour.in"
+      #         - "https://mapmytimes.com"
+      #         - "https://www.mapmytimes.com"
+      #         - "https://*.mapmytimes.com"
       #       allowedMethods:
       #         - GET
       #         - POST
@@ -1987,7 +1987,7 @@ info:
     build-number: ${BUILD_NUMBER:local}
   team:
     name: "MapMyTour Engineering"
-    email: "engineering@mapmytour.in"
+    email: "engineering@mapmytimes.com"
   features:
     security: "JWT Authentication + RBAC"
     rate-limiting: "Redis-based distributed rate limiting"
@@ -2006,7 +2006,7 @@ app:
     cors: true
     monitoring: true
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,https://mapmytour.in,https://www.mapmytour.in}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,https://mapmytimes.com,https://www.mapmytimes.com}
   security:
     jwt:
       issuer: ${jwt.issuer}

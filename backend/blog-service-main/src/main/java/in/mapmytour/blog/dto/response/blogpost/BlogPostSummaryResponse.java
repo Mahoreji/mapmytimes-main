@@ -24,6 +24,7 @@ public class BlogPostSummaryResponse {
     private String userId;
     private List<String> categories;
     private List<String> tags;
+    private String sectionSlug;
     private String postType;
     private Integer likeCount;
     private Integer commentCount;

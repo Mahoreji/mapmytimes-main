@@ -109,6 +109,9 @@ public class BlogPost {
     @Builder.Default
     private List<String> tags = new ArrayList<>();
 
+    @Column(name = "section_slug", length = 64)
+    private String sectionSlug;
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean allowComments = true;
@@ -138,7 +141,7 @@ public class BlogPost {
 
     @Column(name = "post_type", nullable = false)
     @Builder.Default
-    private String postType = "BLOG"; // BLOG, SOCIAL, STORY
+    private String postType = "BLOG"; // BLOG, ARTICLE, VIDEO, SHORT, STORY, SOCIAL, PAGE
 
     @Column(name = "author_email")
     private String authorEmail;

@@ -8,6 +8,7 @@ import in.mapmytour.blog.dto.response.category.CategoryResponse;
 import in.mapmytour.blog.dto.response.postcomment.PostCommentResponse;
 import in.mapmytour.blog.dto.response.postlike.PostLikeResponse;
 import in.mapmytour.blog.dto.response.postmedia.PostMediaResponse;
+import in.mapmytour.blog.dto.response.section.SectionResponse;
 import in.mapmytour.blog.dto.response.tag.TagResponse;
 import in.mapmytour.blog.entity.*;
 import org.springframework.data.domain.Page;
@@ -60,6 +61,7 @@ public class BlogMapper {
                 .userId(blogPost.getUserId())
                 .categories(blogPost.getCategories() != null ? new java.util.ArrayList<>(blogPost.getCategories()) : new java.util.ArrayList<>())
                 .tags(blogPost.getTags() != null ? new java.util.ArrayList<>(blogPost.getTags()) : new java.util.ArrayList<>())
+                .sectionSlug(blogPost.getSectionSlug())
                 .viewCount(blogPost.getViewCount())
                 .shareCount(blogPost.getShareCount())
                 .bookmarkCount(blogPost.getBookmarkCount())
@@ -114,6 +116,7 @@ public class BlogMapper {
                 .userId(blogPost.getUserId())
                 .categories(blogPost.getCategories() != null ? new java.util.ArrayList<>(blogPost.getCategories()) : new java.util.ArrayList<>())
                 .tags(blogPost.getTags() != null ? new java.util.ArrayList<>(blogPost.getTags()) : new java.util.ArrayList<>())
+                .sectionSlug(blogPost.getSectionSlug())
                 .viewCount(blogPost.getViewCount())
                 .postType(blogPost.getPostType())
                 .likeCount(blogPost.getLikes().size())
@@ -153,6 +156,21 @@ public class BlogMapper {
                 .parentCategoryId(category.getParentCategoryId())
                 .createdAt(category.getCreatedAt())
                 .updatedAt(category.getUpdatedAt())
+                .build();
+    }
+
+    public SectionResponse toSectionResponse(Section section) {
+        return SectionResponse.builder()
+                .id(section.getId())
+                .name(section.getName())
+                .slug(section.getSlug())
+                .description(section.getDescription())
+                .icon(section.getIcon())
+                .accentColor(section.getAccentColor())
+                .sortOrder(section.getSortOrder())
+                .parentSectionId(section.getParentSectionId())
+                .createdAt(section.getCreatedAt())
+                .updatedAt(section.getUpdatedAt())
                 .build();
     }
 

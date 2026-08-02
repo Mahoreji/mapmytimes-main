@@ -40,34 +40,34 @@ public class GatewayConfig {
     private String serverPort;
 
     // Service URLs from environment variables
-    @Value("${AUTH_USER_SERVICE_URL:https://auth.mapmytour.in}")
+    @Value("${AUTH_USER_SERVICE_URL:https://auth.mapmytimes.com}")
     private String authUserServiceUrl;
 
-    @Value("${PAYMENT_SERVICE_URL:https://payment.mapmytour.in}")
+    @Value("${PAYMENT_SERVICE_URL:https://payment.mapmytimes.com}")
     private String paymentServiceUrl;
 
-    @Value("${BOOKING_SERVICE_URL:https://booking.mapmytour.in}")
+    @Value("${BOOKING_SERVICE_URL:https://booking.mapmytimes.com}")
     private String bookingServiceUrl;
 
-    @Value("${TRAVEL_SERVICE_URI:${TRAVEL_SERVICE_URL:https://travel.mapmytour.in}}")
+    @Value("${TRAVEL_SERVICE_URI:${TRAVEL_SERVICE_URL:https://travel.mapmytimes.com}}")
     private String travelServiceUrl;
 
-    @Value("${REVIEWS_SERVICE_URL:https://reviews.mapmytour.in}")
+    @Value("${REVIEWS_SERVICE_URL:https://reviews.mapmytimes.com}")
     private String reviewsServiceUrl;
 
-    @Value("${BLOG_SERVICE_URL:https://blog.mapmytour.in}")
+    @Value("${BLOG_SERVICE_URL:https://blog.mapmytimes.com}")
     private String blogServiceUrl;
 
-    @Value("${CUSTOMER_SUPPORT_SERVICE_URL:https://customer.mapmytour.in}")
+    @Value("${CUSTOMER_SUPPORT_SERVICE_URL:https://customer.mapmytimes.com}")
     private String customerSupportServiceUrl;
 
-    @Value("${UTILS_SERVICE_URL:https://utils.mapmytour.in}")
+    @Value("${UTILS_SERVICE_URL:https://utils.mapmytimes.com}")
     private String utilsServiceUrl;
 
-    @Value("${CORE_SERVICE_URL:https://core.mapmytour.in}")
+    @Value("${CORE_SERVICE_URL:https://core.mapmytimes.com}")
     private String coreServiceUrl;
 
-    @Value("${CHAT_SERVICE_URL:https://chat.mapmytour.in}")
+    @Value("${CHAT_SERVICE_URL:https://chat.mapmytimes.com}")
     private String chatServiceUrl;
 
     // CRM/ERP Service URLs
@@ -165,9 +165,9 @@ public class GatewayConfig {
         corsConfig.setAllowedOriginPatterns(Arrays.asList(
                 "http://localhost:3000",
                 "http://localhost:3001",
-                "https://mapmytour.in",
-                "https://www.mapmytour.in",
-                "https://*.mapmytour.in"));
+                "https://mapmytimes.com",
+                "https://www.mapmytimes.com",
+                "https://*.mapmytimes.com"));
         corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         corsConfig.setAllowedHeaders(Arrays.asList(
                 "Authorization",

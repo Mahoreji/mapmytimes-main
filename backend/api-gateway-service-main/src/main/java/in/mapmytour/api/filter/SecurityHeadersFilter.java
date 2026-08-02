@@ -31,11 +31,11 @@ public class SecurityHeadersFilter implements GlobalFilter, Ordered {
     // Multi-origin comprehensive policy for Cashfree, Google Analytics, AWS S3, and Embark
     private static final String CSP_VALUE =
             "default-src 'self'; " +
-            "script-src 'self' 'unsafe-inline' https://www.google-analytics.com https://apis.google.com https://sdk.cashfree.com https://*.embarktest.com https://*.embark.com https://*.mapmytour.in; " +
+            "script-src 'self' 'unsafe-inline' https://www.google-analytics.com https://apis.google.com https://sdk.cashfree.com https://*.embarktest.com https://*.embark.com https://*.mapmytimes.com; " +
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
             "font-src 'self' https://fonts.gstatic.com; " +
-            "img-src 'self' data: https://*.amazonaws.com https://*.embarktest.com https://*.embark.com https://*.mapmytour.in; " +
-            "connect-src 'self' https://*.mapmytour.in https://*.cashfree.com https://*.embarktest.com https://*.embark.com; " +
+            "img-src 'self' data: https://*.amazonaws.com https://*.embarktest.com https://*.embark.com https://*.mapmytimes.com; " +
+            "connect-src 'self' https://*.mapmytimes.com https://*.cashfree.com https://*.embarktest.com https://*.embark.com; " +
             "frame-ancestors 'self'; " +
             "base-uri 'self'; " +
             "form-action 'self'";

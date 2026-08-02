@@ -39,7 +39,7 @@ public class OAuth2Controller {
      *
      * - Local dev (default here): http://localhost:8081 (auth-service v2 direct port)
      * - MapMyTimes production: override APP_OAUTH2_BASE_URL env var to https://api.mapmytimes.com
-     * - MapMyTour production: override APP_OAUTH2_BASE_URL env var to https://api.mapmytour.in
+     * - MapMyTour production: override APP_OAUTH2_BASE_URL env var to https://api.mapmytimes.com
      */
     @Value("${app.oauth2.base-url:http://localhost:8081}")
     private String oauth2BaseUrl;

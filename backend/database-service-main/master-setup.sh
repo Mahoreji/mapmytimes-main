@@ -139,7 +139,7 @@ REDIS_PROD_EXTERNAL_PORT=6379
 # ===========================================
 # DOMAIN CONFIGURATION
 # ===========================================
-DOMAIN=mapmytour.in
+DOMAIN=mapmytimes.com
 POSTGRES_DEV_SUBDOMAIN=postgresql-dev
 POSTGRES_PROD_SUBDOMAIN=postgresql-prod
 REDIS_DEV_SUBDOMAIN=redis-dev
@@ -176,7 +176,7 @@ SSL_KEY_PATH=./ssl/key.pem
 # ===========================================
 ENABLE_MONITORING=true
 SLACK_WEBHOOK_URL=
-EMAIL_ALERTS=admin@mapmytour.in
+EMAIL_ALERTS=admin@mapmytimes.com
 
 # ===========================================
 # PERFORMANCE TUNING
@@ -2077,10 +2077,10 @@ done
 echo ""
 echo "🌐 Service Endpoints:"
 echo "---------------------"
-echo "  • PostgreSQL Dev: postgresql-dev.mapmytour.in:5433 (localhost:5433)"
-echo "  • PostgreSQL Prod: postgresql-prod.mapmytour.in:5432 (localhost:5432)" 
-echo "  • Redis Dev: redis-dev.mapmytour.in:6380 (localhost:6380)"
-echo "  • Redis Prod: redis-prod.mapmytour.in:6379 (localhost:6379)"
+echo "  • PostgreSQL Dev: postgresql-dev.mapmytimes.com:5433 (localhost:5433)"
+echo "  • PostgreSQL Prod: postgresql-prod.mapmytimes.com:5432 (localhost:5432)" 
+echo "  • Redis Dev: redis-dev.mapmytimes.com:6380 (localhost:6380)"
+echo "  • Redis Prod: redis-prod.mapmytimes.com:6379 (localhost:6379)"
 
 echo ""
 echo "🔑 Connection Examples:"
@@ -2498,10 +2498,10 @@ docker-compose up -d
 
 ## Service Access
 
-- **PostgreSQL Dev**: localhost:5433 (postgresql-dev.mapmytour.in:5433)
-- **PostgreSQL Prod**: localhost:5432 (postgresql-prod.mapmytour.in:5432)
-- **Redis Dev**: localhost:6380 (redis-dev.mapmytour.in:6380)
-- **Redis Prod**: localhost:6379 (redis-prod.mapmytour.in:6379)
+- **PostgreSQL Dev**: localhost:5433 (postgresql-dev.mapmytimes.com:5433)
+- **PostgreSQL Prod**: localhost:5432 (postgresql-prod.mapmytimes.com:5432)
+- **Redis Dev**: localhost:6380 (redis-dev.mapmytimes.com:6380)
+- **Redis Prod**: localhost:6379 (redis-prod.mapmytimes.com:6379)
 
 ## Management Commands
 
@@ -2626,10 +2626,10 @@ echo ""
 print_header "🌐 Network Configuration"
 
 echo -e "${YELLOW}Set up DNS records:${NC}"
-echo "  postgresql-dev.mapmytour.in    A    150.241.245.162"
-echo "  postgresql-prod.mapmytour.in   A    150.241.245.162"
-echo "  redis-dev.mapmytour.in         A    150.241.245.162"
-echo "  redis-prod.mapmytour.in        A    150.241.245.162"
+echo "  postgresql-dev.mapmytimes.com    A    150.241.245.162"
+echo "  postgresql-prod.mapmytimes.com   A    150.241.245.162"
+echo "  redis-dev.mapmytimes.com         A    150.241.245.162"
+echo "  redis-prod.mapmytimes.com        A    150.241.245.162"
 
 echo ""
 echo -e "${YELLOW}Configure firewall:${NC}"

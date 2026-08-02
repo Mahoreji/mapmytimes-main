@@ -51,7 +51,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String providerId = getProviderId(oAuth2User, provider);
 
         // Get redirect URI from cookie (set during OAuth2 login initiation)
-        // This allows different frontends (www.mapmytour.in, staging.mapmytour.in) to use the same backend
+        // This allows different frontends (www.mapmytimes.com, staging.mapmytimes.com) to use the same backend
         String redirectUri = CookieUtils.getCookie(request, HttpCookieOAuth2AuthorizationRequestRepository.REDIRECT_URI_PARAM_COOKIE_NAME)
                 .map(cookie -> cookie.getValue())
                 .orElse(null);
@@ -61,7 +61,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         if (redirectUri != null && !redirectUri.trim().isEmpty()) {
             // Validate redirect_uri against allowed list (security check)
             if (isRedirectUriAllowed(redirectUri)) {
-                // Extract base URL from redirect_uri (e.g., https://www.mapmytour.in/auth/oauth2/redirect -> https://www.mapmytour.in)
+                // Extract base URL from redirect_uri (e.g., https://www.mapmytimes.com/auth/oauth2/redirect -> https://www.mapmytimes.com)
                 try {
                     java.net.URI uri = java.net.URI.create(redirectUri);
                     frontendUrl = uri.getScheme() + "://" + uri.getHost() + (uri.getPort() != -1 ? ":" + uri.getPort() : "");

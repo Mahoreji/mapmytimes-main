@@ -39,7 +39,7 @@ public class CreateBlogPostRequest {
     private Boolean isFeatured;
     private Boolean isTrending;
     private LocalDateTime scheduledAt;
-    private String postType; // BLOG, SOCIAL, STORY
+    private String postType; // BLOG, ARTICLE, VIDEO, SHORT, STORY, SOCIAL, PAGE
 
     private String userId;
 
@@ -50,6 +50,7 @@ public class CreateBlogPostRequest {
 
     private List<String> categories;
     private List<String> tags;
+    private String sectionSlug;
 
     @Builder.Default
     private Boolean allowComments = true;

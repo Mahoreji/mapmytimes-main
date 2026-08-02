@@ -580,7 +580,7 @@
                     "request": {
                         "method": "GET",
                         "url": {
-                            "raw": "{{baseUrl}}/api/v1/oauth2/authorize/google?redirectUri=https://web.mapmytour.in",
+                            "raw": "{{baseUrl}}/api/v1/oauth2/authorize/google?redirectUri=https://web.mapmytimes.com",
                             "host": [
                                 "{{baseUrl}}"
                             ],
@@ -594,7 +594,7 @@
                             "query": [
                                 {
                                     "key": "redirectUri",
-                                    "value": "https://web.mapmytour.in"
+                                    "value": "https://web.mapmytimes.com"
                                 }
                             ]
                         }

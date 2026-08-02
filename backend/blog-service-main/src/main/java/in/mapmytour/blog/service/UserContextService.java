@@ -71,7 +71,7 @@ public class UserContextService {
             log.debug("No authentication found and gateway-only disabled, using default test user");
             return UserContext.builder()
                     .userId("test-user-123")
-                    .email("test@mapmytour.in")
+                    .email("test@mapmytimes.com")
                     .role("USER")
                     .authenticated(true)
                     .build();

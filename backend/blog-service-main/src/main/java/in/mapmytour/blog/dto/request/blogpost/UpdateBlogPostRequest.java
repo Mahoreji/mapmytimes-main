@@ -42,6 +42,7 @@ public class UpdateBlogPostRequest {
 
     private List<String> categories;
     private List<String> tags;
+    private String sectionSlug;
     private Boolean allowComments;
     private Boolean allowLikes;
     // Legacy support - flat structure (one subtitle per image)

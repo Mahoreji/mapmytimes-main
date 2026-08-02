@@ -6,18 +6,18 @@
 #### **Core Services (8080-8090)**
 | Subdomain               | Service Name            | Port   | Status |
 |-------------------------|-------------------------|--------|--------|
-| `mapmytour.in`          | Frontend (Next.js)      | `3000` | ✅ Done |
-| `api.mapmytour.in`      | API Gateway            | `8080` | ✅ Done |
-| `auth.mapmytour.in`     | Auth Service            | `8081` | ✅ Done |
-| `utils.mapmytour.in`    | Utils Service           | `8082` | ✅ Done |
-| `core.mapmytour.in`     | Core Service            | `8083` | ✅ Done |
-| `ai.mapmytour.in`       | AI Service              | `8084` | ✅ Done |
-| `travel.mapmytour.in`   | Travel Service          | `8085` | ✅ Done |
-| `customer.mapmytour.in` | Customer Support Service| `8086` | ✅ Done |
-| `review.mapmytour.in`   | Reviews & Rating Service| `8087` | ✅ Done |
-| `payment.mapmytour.in`  | Payment Service         | `8088` | ✅ Done |
-| `booking.mapmytour.in`  | Booking Service         | `8089` | ✅ Done |
-| `blog.mapmytour.in`     | Blog Service            | `8090` | ✅ Done |
+| `mapmytimes.com`          | Frontend (Next.js)      | `3000` | ✅ Done |
+| `api.mapmytimes.com`      | API Gateway            | `8080` | ✅ Done |
+| `auth.mapmytimes.com`     | Auth Service            | `8081` | ✅ Done |
+| `utils.mapmytimes.com`    | Utils Service           | `8082` | ✅ Done |
+| `core.mapmytimes.com`     | Core Service            | `8083` | ✅ Done |
+| `ai.mapmytimes.com`       | AI Service              | `8084` | ✅ Done |
+| `travel.mapmytimes.com`   | Travel Service          | `8085` | ✅ Done |
+| `customer.mapmytimes.com` | Customer Support Service| `8086` | ✅ Done |
+| `review.mapmytimes.com`   | Reviews & Rating Service| `8087` | ✅ Done |
+| `payment.mapmytimes.com`  | Payment Service         | `8088` | ✅ Done |
+| `booking.mapmytimes.com`  | Booking Service         | `8089` | ✅ Done |
+| `blog.mapmytimes.com`     | Blog Service            | `8090` | ✅ Done |
 
 #### **Newly Created Services (8092-8102)**
 | Service Name                    | Port   | Description                          | Status |
@@ -69,17 +69,17 @@ All newly created services follow a sequential port numbering scheme starting fr
 
 ```bash
 # Core Services
-AUTH_SERVICE_URL=http://auth.mapmytour.in
-USER_SERVICE_URL=http://auth.mapmytour.in
-PAYMENT_SERVICE_URL=http://payment.mapmytour.in
-BOOKING_SERVICE_URL=http://booking.mapmytour.in
-TRAVEL_SERVICE_URL=http://travel.mapmytour.in
-REVIEWS_SERVICE_URL=http://review.mapmytour.in
-BLOG_SERVICE_URL=http://blog.mapmytour.in
-CUSTOMER_SUPPORT_SERVICE_URL=http://customer.mapmytour.in
-UTILS_SERVICE_URL=http://utils.mapmytour.in
-CORE_SERVICE_URL=http://core.mapmytour.in
-CHAT_SERVICE_URL=http://chat.mapmytour.in
+AUTH_SERVICE_URL=http://auth.mapmytimes.com
+USER_SERVICE_URL=http://auth.mapmytimes.com
+PAYMENT_SERVICE_URL=http://payment.mapmytimes.com
+BOOKING_SERVICE_URL=http://booking.mapmytimes.com
+TRAVEL_SERVICE_URL=http://travel.mapmytimes.com
+REVIEWS_SERVICE_URL=http://review.mapmytimes.com
+BLOG_SERVICE_URL=http://blog.mapmytimes.com
+CUSTOMER_SUPPORT_SERVICE_URL=http://customer.mapmytimes.com
+UTILS_SERVICE_URL=http://utils.mapmytimes.com
+CORE_SERVICE_URL=http://core.mapmytimes.com
+CHAT_SERVICE_URL=http://chat.mapmytimes.com
 
 # Newly Created Services (Local Development)
 AGENT_SERVICE_URL=http://localhost:8103
@@ -95,17 +95,17 @@ LOYALTY_SERVICE_URL=http://localhost:8101
 CORPORATE_TRAVEL_SERVICE_URL=http://localhost:8102
 
 # Production URLs (when deployed)
-# AGENT_SERVICE_URL=https://agent.mapmytour.in
-# SUPPLIER_SERVICE_URL=https://supplier.mapmytour.in
-# EMPLOYEE_SERVICE_URL=https://employee.mapmytour.in
-# DOCUMENT_SERVICE_URL=https://document.mapmytour.in
-# GST_SERVICE_URL=https://gst.mapmytour.in
-# FRAUD_SERVICE_URL=https://fraud.mapmytour.in
-# AUDIT_SERVICE_URL=https://audit.mapmytour.in
-# REPORT_SERVICE_URL=https://reports.mapmytour.in
-# LEAD_SERVICE_URL=https://lead.mapmytour.in
-# LOYALTY_SERVICE_URL=https://loyalty.mapmytour.in
-# CORPORATE_TRAVEL_SERVICE_URL=https://corporate.mapmytour.in
+# AGENT_SERVICE_URL=https://agent.mapmytimes.com
+# SUPPLIER_SERVICE_URL=https://supplier.mapmytimes.com
+# EMPLOYEE_SERVICE_URL=https://employee.mapmytimes.com
+# DOCUMENT_SERVICE_URL=https://document.mapmytimes.com
+# GST_SERVICE_URL=https://gst.mapmytimes.com
+# FRAUD_SERVICE_URL=https://fraud.mapmytimes.com
+# AUDIT_SERVICE_URL=https://audit.mapmytimes.com
+# REPORT_SERVICE_URL=https://reports.mapmytimes.com
+# LEAD_SERVICE_URL=https://lead.mapmytimes.com
+# LOYALTY_SERVICE_URL=https://loyalty.mapmytimes.com
+# CORPORATE_TRAVEL_SERVICE_URL=https://corporate.mapmytimes.com
 ```
 
 ## Notes

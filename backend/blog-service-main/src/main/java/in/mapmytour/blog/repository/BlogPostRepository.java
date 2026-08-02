@@ -62,6 +62,11 @@ public interface BlogPostRepository extends JpaRepository<BlogPost, String>, Blo
     @Query("SELECT bp FROM BlogPost bp WHERE :tag MEMBER OF bp.tags")
     Page<BlogPost> findByTag(@Param("tag") String tag, Pageable pageable);
 
+    @Query("SELECT bp FROM BlogPost bp WHERE bp.sectionSlug = :sectionSlug")
+    Page<BlogPost> findBySectionSlug(@Param("sectionSlug") String sectionSlug, Pageable pageable);
+
+    Page<BlogPost> findByStatusAndSectionSlug(String status, String sectionSlug, Pageable pageable);
+
     @Query("SELECT bp FROM BlogPost bp JOIN bp.likes pl WHERE pl.userId = :userId")
     Page<BlogPost> findLikedPostsByUserId(@Param("userId") String userId, Pageable pageable);
 

@@ -143,6 +143,7 @@ public class BlogPostServiceImpl implements BlogPostService {
                     .userId(request.getUserId())
                     .categories(request.getCategories() != null ? request.getCategories() : new ArrayList<>())
                     .tags(request.getTags() != null ? request.getTags() : new ArrayList<>())
+                    .sectionSlug(request.getSectionSlug())
                     .allowLikes(request.getAllowLikes())
                     .status("DRAFT")
                     .postType(org.springframework.util.StringUtils.hasText(request.getPostType()) ? request.getPostType() : "BLOG")
@@ -401,8 +402,18 @@ public class BlogPostServiceImpl implements BlogPostService {
             log.info("Searching blog posts without pagination limit");
             List<BlogPost> allPosts;
 
+            // Handle section-specific search
+            if (StringUtils.hasText(request.getSectionSlug())) {
+                Pageable unlimitedPageable = PageRequest.of(0, 10000,
+                        Sort.by(Sort.Direction
+                                .fromString(request.getSortDirection() != null ? request.getSortDirection() : "DESC"),
+                                request.getSortBy() != null ? request.getSortBy() : "createdAt"));
+                Page<BlogPost> sectionPage = blogPostRepository.findBySectionSlug(request.getSectionSlug(),
+                        unlimitedPageable);
+                allPosts = sectionPage.getContent();
+            }
             // Handle category-specific search
-            if (request.getCategories() != null && !request.getCategories().isEmpty()) {
+            else if (request.getCategories() != null && !request.getCategories().isEmpty()) {
                 // Get all posts for category (we'll need to fetch all and filter)
                 Pageable unlimitedPageable = PageRequest.of(0, 10000,
                         Sort.by(Sort.Direction
@@ -411,6 +422,11 @@ public class BlogPostServiceImpl implements BlogPostService {
                 Page<BlogPost> categoryPage = blogPostRepository.findByCategory(request.getCategories().get(0),
                         unlimitedPageable);
                 allPosts = categoryPage.getContent();
+                if (StringUtils.hasText(request.getSectionSlug())) {
+                    allPosts = allPosts.stream()
+                            .filter(p -> request.getSectionSlug().equalsIgnoreCase(p.getSectionSlug()))
+                            .collect(Collectors.toList());
+                }
             }
             // Handle tag-specific search
             else if (request.getTags() != null && !request.getTags().isEmpty()) {
@@ -420,6 +436,11 @@ public class BlogPostServiceImpl implements BlogPostService {
                                 request.getSortBy() != null ? request.getSortBy() : "createdAt"));
                 Page<BlogPost> tagPage = blogPostRepository.findByTag(request.getTags().get(0), unlimitedPageable);
                 allPosts = tagPage.getContent();
+                if (StringUtils.hasText(request.getSectionSlug())) {
+                    allPosts = allPosts.stream()
+                            .filter(p -> request.getSectionSlug().equalsIgnoreCase(p.getSectionSlug()))
+                            .collect(Collectors.toList());
+                }
             }
             // Handle general search - use custom method for full-text search including
             // content
@@ -434,9 +455,14 @@ public class BlogPostServiceImpl implements BlogPostService {
                         request.getUserId(),
                         unlimitedPageable);
                 allPosts = searchPage.getContent();
+                if (StringUtils.hasText(request.getSectionSlug())) {
+                    allPosts = allPosts.stream()
+                            .filter(p -> request.getSectionSlug().equalsIgnoreCase(p.getSectionSlug()))
+                            .collect(Collectors.toList());
+                }
             }
 
-            // Apply language filter in-memory (works for all branches: category/tag/search)
+            // Apply language filter in-memory (works for all branches: section/category/tag/search)
             if (language != null) {
                 allPosts = allPosts.stream()
                         .filter(p -> language.equalsIgnoreCase(p.getLanguage()))
@@ -470,16 +496,32 @@ public class BlogPostServiceImpl implements BlogPostService {
 
         Page<BlogPost> blogPosts;
 
+        // Handle section-specific search
+        if (StringUtils.hasText(request.getSectionSlug())) {
+            blogPosts = blogPostRepository.findBySectionSlug(request.getSectionSlug(), pageable);
+        }
         // Handle category-specific search
-        if (request.getCategories() != null && !request.getCategories().isEmpty()) {
+        else if (request.getCategories() != null && !request.getCategories().isEmpty()) {
             // For now, search by the first category (can be enhanced later for multiple
             // categories)
             blogPosts = blogPostRepository.findByCategory(request.getCategories().get(0), pageable);
+            if (StringUtils.hasText(request.getSectionSlug())) {
+                List<BlogPost> filtered = blogPosts.getContent().stream()
+                        .filter(p -> request.getSectionSlug().equalsIgnoreCase(p.getSectionSlug()))
+                        .collect(Collectors.toList());
+                blogPosts = new org.springframework.data.domain.PageImpl<>(filtered, pageable, filtered.size());
+            }
         }
         // Handle tag-specific search
         else if (request.getTags() != null && !request.getTags().isEmpty()) {
             // For now, search by the first tag (can be enhanced later for multiple tags)
             blogPosts = blogPostRepository.findByTag(request.getTags().get(0), pageable);
+            if (StringUtils.hasText(request.getSectionSlug())) {
+                List<BlogPost> filtered = blogPosts.getContent().stream()
+                        .filter(p -> request.getSectionSlug().equalsIgnoreCase(p.getSectionSlug()))
+                        .collect(Collectors.toList());
+                blogPosts = new org.springframework.data.domain.PageImpl<>(filtered, pageable, filtered.size());
+            }
         }
         // Handle general search - use custom method for full-text search including
         // content
@@ -489,9 +531,15 @@ public class BlogPostServiceImpl implements BlogPostService {
                     request.getStatus(),
                     request.getUserId(),
                     pageable);
+            if (StringUtils.hasText(request.getSectionSlug())) {
+                List<BlogPost> filtered = blogPosts.getContent().stream()
+                        .filter(p -> request.getSectionSlug().equalsIgnoreCase(p.getSectionSlug()))
+                        .collect(Collectors.toList());
+                blogPosts = new org.springframework.data.domain.PageImpl<>(filtered, pageable, filtered.size());
+            }
         }
 
-        // For category/tag/search pages with pagination, apply language filter in-memory
+        // For section/category/tag/search pages with pagination, apply language filter in-memory
         // (keeping it simple; later we could introduce custom @Query methods with AND language)
         if (language != null) {
             List<BlogPost> filtered = blogPosts.getContent().stream()
@@ -670,6 +718,9 @@ public class BlogPostServiceImpl implements BlogPostService {
             }
             if (request.getTags() != null) {
                 blogPost.setTags(request.getTags());
+            }
+            if (request.getSectionSlug() != null) {
+                blogPost.setSectionSlug(request.getSectionSlug());
             }
             if (request.getAllowComments() != null) {
                 blogPost.setAllowComments(request.getAllowComments());

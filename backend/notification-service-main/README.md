@@ -124,9 +124,9 @@ docker run -d --name notification-service \
   -e DB_SSL_MODE=prefer \
   -e EMAIL_HOST=smtp.zoho.in \
   -e EMAIL_PORT=465 \
-  -e EMAIL_USERNAME=hello@mapmytour.in \
+  -e EMAIL_USERNAME=hello@mapmytimes.com \
   -e EMAIL_PASSWORD=AsRrjFCenepY \
-  -e CONTACT_FORM_RECIPIENT_EMAIL=support@mapmytour.in \
+  -e CONTACT_FORM_RECIPIENT_EMAIL=support@mapmytimes.com \
   -e CONTACT_FORM_AUTO_REPLY=true \
   -e REDIS_HOST=150.241.245.162 \
   -e REDIS_PORT=6379 \
@@ -169,11 +169,11 @@ DB_SSL_MODE=prefer
 # Email (Gmail SMTP)
 EMAIL_HOST=smtp.zoho.in
 EMAIL_PORT=465
-EMAIL_USERNAME=hello@mapmytour.in
+EMAIL_USERNAME=hello@mapmytimes.com
 EMAIL_PASSWORD=AsRrjFCenepY
 
 # Contact Form
-CONTACT_FORM_RECIPIENT_EMAIL=support@mapmytour.in
+CONTACT_FORM_RECIPIENT_EMAIL=support@mapmytimes.com
 CONTACT_FORM_AUTO_REPLY=true
 
 # Redis

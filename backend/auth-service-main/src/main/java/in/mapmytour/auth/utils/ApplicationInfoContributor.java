@@ -20,8 +20,8 @@ public class ApplicationInfoContributor implements InfoContributor {
         appInfo.put("startup-time", LocalDateTime.now().toString());
 
         Map<String, Object> contact = new HashMap<>();
-        contact.put("email", "support@mapmytour.in");
-        contact.put("website", "https://mapmytour.in");
+        contact.put("email", "support@mapmytimes.com");
+        contact.put("website", "https://mapmytimes.com");
 
         appInfo.put("contact", contact);
 

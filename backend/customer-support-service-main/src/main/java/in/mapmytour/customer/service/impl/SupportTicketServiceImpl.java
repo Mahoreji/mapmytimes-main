@@ -533,6 +533,6 @@ public class SupportTicketServiceImpl implements SupportTicketService {
                 }
             }
         }
-        return "customer-" + customerId + "@mapmytour.in";
+        return "customer-" + customerId + "@mapmytimes.com";
     }
 }

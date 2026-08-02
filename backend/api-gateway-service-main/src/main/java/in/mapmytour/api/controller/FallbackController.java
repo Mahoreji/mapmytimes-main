@@ -136,7 +136,7 @@ public class FallbackController {
     public ResponseEntity<APIResponse<Object>> customerSupportServiceFallback() {
         log.warn("Customer support service is currently unavailable - fallback triggered at {}", getFallbackTimestamp());
         return createServiceUnavailableResponse(
-                "Customer support system is temporarily unavailable. For urgent matters, please email support@mapmytour.in",
+                "Customer support system is temporarily unavailable. For urgent matters, please email support@mapmytimes.com",
                 "CUSTOMER_SUPPORT_SERVICE_DOWN"
         );
     }

@@ -17,9 +17,9 @@ services:
       - DB_SSL_MODE=prefer
       - EMAIL_HOST=smtp.zoho.in
       - EMAIL_PORT=465
-      - EMAIL_USERNAME=hello@mapmytour.in
+      - EMAIL_USERNAME=hello@mapmytimes.com
       - EMAIL_PASSWORD=AsRrjFCenepY
-      - CONTACT_FORM_RECIPIENT_EMAIL=support@mapmytour.in
+      - CONTACT_FORM_RECIPIENT_EMAIL=support@mapmytimes.com
       - CONTACT_FORM_AUTO_REPLY=true
       - REDIS_HOST=redis
       - REDIS_PORT=6379

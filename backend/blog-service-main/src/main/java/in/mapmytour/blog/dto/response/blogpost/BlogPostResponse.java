@@ -35,6 +35,7 @@ public class BlogPostResponse {
     private String userId;
     private List<String> categories;
     private List<String> tags;
+    private String sectionSlug;
     private Long viewCount;
     private Long shareCount;
     private Long bookmarkCount;
