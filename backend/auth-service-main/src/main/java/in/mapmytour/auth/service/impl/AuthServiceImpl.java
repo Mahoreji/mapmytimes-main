@@ -248,7 +248,7 @@ public class AuthServiceImpl implements AuthService {
                     Map<String, Object> vars = new HashMap<>();
                     vars.put("firstName", user.getFirstName());
                     vars.put("verificationCode", otp);
-                    notificationService.sendEmail(request, "Your OTP for Map My Tour", "", "verification_email", vars);
+                    notificationService.sendEmail(request, "Your OTP for MapMyTimes", "", "verification_email", vars);
                 } catch (Exception e) {
                     log.error("Failed to send OTP email asynchronously to {}: {}", request, e.getMessage(), e);
                 }
@@ -510,7 +510,7 @@ public class AuthServiceImpl implements AuthService {
         Map<String, Object> vars = new HashMap<>();
         vars.put("firstName", user.getFirstName());
         vars.put("verificationCode", otp);
-        notificationService.sendEmail(request.getEmail(), "Your OTP for Map My Tour", "", "verification_email", vars);
+        notificationService.sendEmail(request.getEmail(), "Your OTP for MapMyTimes", "", "verification_email", vars);
         
         if (user.getPhone() != null && ValidationUtil.isValidPhoneNumber(user.getPhone())) {
             notificationService.sendSMS(user.getPhone(), "Your MapMyTour password reset OTP is: " + otp);

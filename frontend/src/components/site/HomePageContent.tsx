@@ -2,24 +2,33 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import type { BlogPostSummaryResponse, CategoryResponse } from "@/types/blog";
+import { useRouter } from "next/navigation";
+import type { BlogPostSummaryResponse, CategoryResponse, ReadingProgressWithPostSummary } from "@/types/blog";
 import { blogApi } from "@/lib/api/blogApi";
 import { PostCard, SectionTitle, Badge } from "@/components/posts/PostCard";
 import { VideoEmbed } from "@/components/posts/VideoEmbed";
 import { BreakingNewsTickerLive } from "@/components/site/BreakingNewsTickerLive";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight, Play, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { categoryImageOrDefault } from "@/lib/assets";
 import { postIsVideoPost } from "@/lib/video";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { tokenStorage } from "@/lib/auth/token-storage";
+import { usePathname } from "next/navigation";
+
+const LS_PROGRESS_PREFIX = "mmt:reader:progress:";
+const LS_META_PREFIX = "mmt:reader:meta:";
 
 export function HomePageContent() {
   const { lang, t } = useLanguage();
+  const router = useRouter();
+  const pathname = usePathname();
   const [featured, setFeatured] = useState<BlogPostSummaryResponse[]>([]);
   const [trending, setTrending] = useState<BlogPostSummaryResponse[]>([]);
   const [latest, setLatest] = useState<BlogPostSummaryResponse[]>([]);
   const [categories, setCategories] = useState<CategoryResponse[]>([]);
+  const [continueReading, setContinueReading] = useState<ReadingProgressWithPostSummary[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
 
   useEffect(() => {
@@ -47,6 +56,168 @@ export function HomePageContent() {
       active = false;
     };
   }, [lang]);
+
+  useEffect(() => {
+    let active = true;
+    const scanLocalStorage = (): ReadingProgressWithPostSummary[] => {
+      if (typeof window === "undefined") return [];
+      const prefix = LS_PROGRESS_PREFIX;
+      const metaPrefix = LS_META_PREFIX;
+      const ls = window.localStorage;
+      const results: Array<ReadingProgressWithPostSummary & { _updatedAt: number }> = [];
+      for (let i = 0; i < ls.length; i++) {
+        const k = ls.key(i);
+        if (!k || !k.startsWith(prefix)) continue;
+        const postId = k.slice(prefix.length);
+        if (!postId) continue;
+        const rawV = ls.getItem(k);
+        if (rawV == null) continue;
+        const v = parseInt(rawV, 10);
+        if (Number.isNaN(v) || v < 5 || v > 95) continue;
+        let meta: any = null;
+        try {
+          const m = ls.getItem(metaPrefix + postId);
+          if (m) meta = JSON.parse(m);
+        } catch {}
+        const slug = meta?.slug ?? postId;
+        let updatedAt = 0;
+        try { updatedAt = parseInt(ls.getItem(metaPrefix + postId + ":ts") ?? "0", 10) || 0; } catch {}
+        results.push({
+          id: postId,
+          title: meta?.title ?? "Continue reading",
+          slug,
+          excerpt: meta?.excerpt ?? "",
+          status: "PUBLISHED" as any,
+          viewCount: meta?.viewCount ?? 0,
+          userId: "",
+          categories: meta?.categories ?? [],
+          tags: [],
+          postType: "BLOG" as any,
+          likeCount: 0,
+          commentCount: 0,
+          featuredImageUrl: meta?.cover ?? meta?.featuredImageUrl,
+          scrollPercent: v,
+          readingTimeMinutes: meta?.readingTimeMinutes ?? 7,
+          _updatedAt: updatedAt,
+        } as ReadingProgressWithPostSummary & { _updatedAt: number });
+      }
+      results.sort((a, b) => b._updatedAt - a._updatedAt);
+      return results.slice(0, 20);
+    };
+    (async () => {
+      try {
+        const token = tokenStorage.access;
+        if (token && token.length > 0) {
+          try {
+            const res = await blogApi.readingProgress.latest(20);
+            if (!active) return;
+            const arr = Array.isArray(res)
+              ? (res as ReadingProgressWithPostSummary[])
+              : (((res as any)?.data ?? (res as any)?.items ?? []) as ReadingProgressWithPostSummary[]);
+            const filtered = arr.filter((e) => {
+              const sp = typeof e?.scrollPercent === "number" ? e.scrollPercent : NaN;
+              return !Number.isNaN(sp) && sp >= 5 && sp <= 95;
+            });
+            if (filtered.length > 0) {
+              setContinueReading(filtered);
+            } else {
+              setContinueReading(scanLocalStorage());
+            }
+          } catch {
+            if (active) setContinueReading(scanLocalStorage());
+          }
+        } else {
+          if (active) setContinueReading(scanLocalStorage());
+        }
+      } catch {
+        if (active) setContinueReading([]);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const scanLocalStorage = (): ReadingProgressWithPostSummary[] => {
+      const prefix = LS_PROGRESS_PREFIX;
+      const metaPrefix = LS_META_PREFIX;
+      const ls = window.localStorage;
+      const results: Array<ReadingProgressWithPostSummary & { _updatedAt: number }> = [];
+      for (let i = 0; i < ls.length; i++) {
+        const k = ls.key(i);
+        if (!k || !k.startsWith(prefix)) continue;
+        const postId = k.slice(prefix.length);
+        if (!postId) continue;
+        const rawV = ls.getItem(k);
+        if (rawV == null) continue;
+        const v = parseInt(rawV, 10);
+        if (Number.isNaN(v) || v < 5 || v > 95) continue;
+        let meta: any = null;
+        try {
+          const m = ls.getItem(metaPrefix + postId);
+          if (m) meta = JSON.parse(m);
+        } catch {}
+        const slug = meta?.slug ?? postId;
+        let updatedAt = 0;
+        try { updatedAt = parseInt(ls.getItem(metaPrefix + postId + ":ts") ?? "0", 10) || 0; } catch {}
+        results.push({
+          id: postId,
+          title: meta?.title ?? "Continue reading",
+          slug,
+          excerpt: meta?.excerpt ?? "",
+          status: "PUBLISHED" as any,
+          viewCount: meta?.viewCount ?? 0,
+          userId: "",
+          categories: meta?.categories ?? [],
+          tags: [],
+          postType: "BLOG" as any,
+          likeCount: 0,
+          commentCount: 0,
+          featuredImageUrl: meta?.cover ?? meta?.featuredImageUrl,
+          scrollPercent: v,
+          readingTimeMinutes: meta?.readingTimeMinutes ?? 7,
+          _updatedAt: updatedAt,
+        } as ReadingProgressWithPostSummary & { _updatedAt: number });
+      }
+      results.sort((a, b) => b._updatedAt - a._updatedAt);
+      return results.slice(0, 20);
+    };
+    const handler = () => {
+      const token = tokenStorage.access;
+      if (token && token.length > 0) {
+        (async () => {
+          try {
+            const res = await blogApi.readingProgress.latest(20);
+            const arr = Array.isArray(res)
+              ? (res as ReadingProgressWithPostSummary[])
+              : (((res as any)?.data ?? (res as any)?.items ?? []) as ReadingProgressWithPostSummary[]);
+            const filtered = arr.filter((e) => {
+              const sp = typeof e?.scrollPercent === "number" ? e.scrollPercent : NaN;
+              return !Number.isNaN(sp) && sp >= 5 && sp <= 95;
+            });
+            if (filtered.length > 0) {
+              setContinueReading(filtered);
+            } else {
+              setContinueReading(scanLocalStorage());
+            }
+          } catch {
+            setContinueReading(scanLocalStorage());
+          }
+        })().catch(() => setContinueReading(scanLocalStorage()));
+      } else {
+        setContinueReading(scanLocalStorage());
+      }
+    };
+    handler();
+    window.addEventListener("storage", handler);
+    const iv = setInterval(handler, 1500);
+    return () => {
+      window.removeEventListener("storage", handler);
+      clearInterval(iv);
+    };
+  }, []);
 
   const hero = featured[0] ?? trending[0] ?? latest[0];
   const restFeatured = featured.slice(1);
@@ -213,6 +384,72 @@ export function HomePageContent() {
           </div>
         </aside>
       </section>
+
+      {continueReading.length > 0 ? (
+        <section className="mx-auto max-w-7xl px-4 py-8 sm:py-10">
+          <div className="mb-5 sm:mb-6 flex items-end justify-between gap-3">
+            <SectionTitle eyebrow="Continue Reading" title="Pick up where you left off" />
+            <BookOpen className="h-4 w-4 text-news shrink-0" />
+          </div>
+          <div className="flex gap-4 sm:gap-5 overflow-x-auto snap-x snap-mandatory pb-2 -mx-4 px-4 scrollbar-thin">
+            {continueReading.map((item) => {
+              const frac = Math.max(0, Math.min(1, (item.scrollPercent ?? 0) / 100));
+              const rt = item.readingTimeMinutes ?? 7;
+              const remaining = Math.ceil(Math.max(1, rt * (1 - frac)));
+              const cover = item.featuredImageUrl;
+              const slug = item.slug ?? String(item.id);
+              return (
+                <article
+                  key={`cont-${String(item.id)}`}
+                  className="snap-start shrink-0 w-[280px] sm:w-[320px] border-2 border-ink-950 bg-white shadow-hard-sm group rounded-[16px] overflow-hidden flex flex-col cursor-pointer transition-transform hover:-translate-y-0.5"
+                  onClick={() =>
+                    router.push(`/news/${encodeURIComponent(slug)}?resume=${encodeURIComponent(String(item.scrollPercent))}`)
+                  }
+                >
+                  <Link
+                    href={`/news/${encodeURIComponent(slug)}?resume=${encodeURIComponent(String(item.scrollPercent))}`}
+                    className="contents"
+                  >
+                    <div className="aspect-[16/10] w-full bg-ink-900/10 overflow-hidden shrink-0">
+                      {cover ? (
+                        <img
+                          src={cover}
+                          alt=""
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                          loading="lazy"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-gradient-to-br from-news-50 to-ink-100 flex items-center justify-center">
+                          <BookOpen className="h-8 w-8 text-news-700/80" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 sm:p-3.5 flex flex-col flex-1 min-h-0">
+                      <h4 className="font-headline text-[14px] sm:text-[15px] uppercase leading-[1.22] line-clamp-2 group-hover:text-news transition-colors">
+                        {item.title}
+                      </h4>
+                      <div className="mt-auto pt-3">
+                        <div className="relative h-[3px] w-full overflow-hidden rounded bg-ink-100">
+                          <div
+                            className="absolute left-0 top-0 h-full bg-news rounded"
+                            style={{ width: `${frac * 100}%` }}
+                          />
+                        </div>
+                        <p className="mt-1.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.14em] text-ink-600">
+                          ~{remaining} MIN LEFT
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
 
       <section className="mx-auto max-w-7xl px-4 py-8 sm:py-10 grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 space-y-6">

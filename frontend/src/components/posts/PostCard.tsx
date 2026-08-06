@@ -1,11 +1,50 @@
+"use client";
+
 import * as React from "react";
 import Link from "next/link";
 import { cn, formatDate, formatRelative, readingTimeLabel, slugify, truncate } from "@/lib/utils";
 import { postCoverOrDefault } from "@/lib/assets";
 import type { BlogPostSummaryResponse } from "@/types/blog";
-import { Eye, Heart, MessageSquare, Clock, ArrowRight, Play, Video as VideoIcon } from "lucide-react";
+import { Eye, Heart, MessageSquare, Clock, ArrowRight, Play, Video as VideoIcon, Share2, Check, Copy, Bookmark, BookmarkCheck } from "lucide-react";
 import Image from "next/image";
 import { postIsVideoPost } from "@/lib/video";
+
+const SAVED_STORAGE_KEY = "mmt:saved-articles";
+
+type SavedPostLite = {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt?: string;
+  featuredImageUrl?: string;
+  publishedAt?: string;
+  savedAt: number;
+};
+
+function readSavedLite(): SavedPostLite[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(SAVED_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (p): p is SavedPostLite =>
+        !!p && typeof p === "object" && typeof p.id === "string" && typeof p.title === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeSavedLite(list: SavedPostLite[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(SAVED_STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    // quota or disabled storage — fail silently
+  }
+}
 
 export function Badge({
   children,
@@ -131,7 +170,7 @@ function ReadCta({ variant = "md", className }: { variant?: "hero" | "lg" | "md"
         className,
       )}
     >
-      Read the complete story
+      Full Story
       <ArrowRight className="w-3.5 h-3.5" />
     </span>
   );
@@ -215,6 +254,164 @@ function CardCover({
   );
 }
 
+function CardShareButton({
+  post,
+  size = "md",
+  dark = false,
+  className,
+}: {
+  post: BlogPostSummaryResponse;
+  size?: "sm" | "md" | "lg";
+  dark?: boolean;
+  className?: string;
+}) {
+  const [copied, setCopied] = React.useState(false);
+  const href = `/news/${encodeURIComponent(post.slug)}`;
+  const sizes: Record<string, string> = {
+    sm: "h-8 w-8 [&>svg]:w-4 [&>svg]:h-4",
+    md: "h-9 w-9 [&>svg]:w-4.5 [&>svg]:h-4.5",
+    lg: "h-10 w-10 [&>svg]:w-5 [&>svg]:h-5",
+  };
+  async function onShare(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    const shareTitle = post.title || "MapMyTimes";
+    const shareText = post.excerpt || shareTitle;
+    try {
+      let absolute = href;
+      if (typeof window !== "undefined") {
+        absolute = new URL(href, window.location.origin).toString();
+      }
+      if (typeof navigator !== "undefined" && typeof (navigator as any).share === "function") {
+        await (navigator as any).share({ title: shareTitle, text: shareText, url: absolute });
+        return;
+      }
+      if (typeof navigator !== "undefined" && typeof (navigator as any).clipboard?.writeText === "function") {
+        await (navigator as any).clipboard.writeText(absolute);
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1800);
+      }
+    } catch {
+    }
+  }
+  return (
+    <span className="relative z-[2] shrink-0 inline-flex" aria-hidden={false}>
+      <span
+        aria-hidden
+        className="absolute inset-0 rounded-full transition-all duration-200"
+        style={{
+          backgroundColor: "#E31E24",
+          border: "0.8px solid rgba(10, 10, 10, 0.9)",
+          boxShadow: "0 2px 8px rgba(227, 30, 36, 0.25)",
+        }}
+      />
+      <button
+        type="button"
+        onClick={onShare}
+        aria-label={`Share ${post.title || "this article"}`}
+        title="Share article"
+        className={cn(
+          "relative z-10 flex items-center justify-center rounded-full transition-opacity active:opacity-70 text-white",
+          sizes[size] ?? sizes.md,
+          className,
+        )}
+      >
+        {copied ? (
+          <Check className="w-4 h-4" />
+        ) : (
+          <Share2 className="w-4 h-4" />
+        )}
+      </button>
+    </span>
+  );
+}
+
+function CardSaveButton({
+  post,
+  size = "md",
+  dark = false,
+  className,
+}: {
+  post: BlogPostSummaryResponse;
+  size?: "sm" | "md" | "lg";
+  dark?: boolean;
+  className?: string;
+}) {
+  const [saved, setSaved] = React.useState(false);
+  const [toast, setToast] = React.useState(false);
+  const sizes: Record<string, string> = {
+    sm: "h-8 w-8 [&>svg]:w-4 [&>svg]:h-4",
+    md: "h-9 w-9 [&>svg]:w-4.5 [&>svg]:h-4.5",
+    lg: "h-10 w-10 [&>svg]:w-5 [&>svg]:h-5",
+  };
+
+  React.useEffect(() => {
+    setSaved(readSavedLite().some((p) => String(p.id) === String(post.id)));
+  }, [post.id]);
+
+  function onSave(e: React.MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    e.stopPropagation();
+    const current = readSavedLite();
+    const existsIdx = current.findIndex((p) => String(p.id) === String(post.id));
+    let next: SavedPostLite[];
+    if (existsIdx >= 0) {
+      next = current.filter((_, i) => i !== existsIdx);
+      setSaved(false);
+    } else {
+      const meta: SavedPostLite = {
+        id: String(post.id),
+        title: post.title || "Untitled",
+        slug: post.slug || String(post.id),
+        excerpt: post.excerpt ?? undefined,
+        featuredImageUrl: post.featuredImageUrl ?? undefined,
+        publishedAt: post.publishedAt ?? post.createdAt ?? undefined,
+        savedAt: Date.now(),
+      };
+      next = [meta, ...current];
+      setSaved(true);
+      setToast(true);
+      window.setTimeout(() => setToast(false), 1600);
+    }
+    writeSavedLite(next);
+  }
+
+  return (
+    <span className="relative z-[2] shrink-0 inline-flex" aria-hidden={false}>
+      <span
+        aria-hidden
+        className="absolute inset-0 rounded-full transition-all duration-300"
+        style={{
+          backgroundColor: "#E31E24",
+          border: saved
+            ? "1.2px solid rgba(255, 255, 255, 0.85)"
+            : "0.8px solid rgba(10, 10, 10, 0.9)",
+          boxShadow: saved
+            ? "0 3px 12px rgba(227, 30, 36, 0.45)"
+            : "0 2px 8px rgba(227, 30, 36, 0.25)",
+        }}
+      />
+      <button
+        type="button"
+        onClick={onSave}
+        aria-label={saved ? `Remove ${post.title || "this article"} from saved` : `Save ${post.title || "this article"} for later`}
+        title={saved ? "Remove from saved" : "Save for later"}
+        className={cn(
+          "relative z-10 flex items-center justify-center rounded-full transition-opacity active:opacity-70 text-white",
+          sizes[size] ?? sizes.md,
+          className,
+        )}
+      >
+        {saved ? (
+          <BookmarkCheck className="w-4 h-4 fill-current" />
+        ) : (
+          <Bookmark className="w-4 h-4" />
+        )}
+      </button>
+    </span>
+  );
+}
+
 export function PostCard({ post, variant = "md", className }: PostCardProps) {
   const href = `/news/${encodeURIComponent(post.slug)}`;
   const cat = (post.categories || [])[0];
@@ -243,7 +440,11 @@ export function PostCard({ post, variant = "md", className }: PostCardProps) {
             ) : null}
             <div className="flex flex-wrap items-center gap-3 justify-between pt-1">
               <PostMeta post={post} dark compact />
-              <ReadCta variant="hero" />
+              <div className="inline-flex items-center gap-2">
+                <ReadCta variant="hero" />
+                <CardShareButton post={post} size="lg" dark />
+                <CardSaveButton post={post} size="lg" dark />
+              </div>
             </div>
           </div>
         </Link>
@@ -261,31 +462,33 @@ export function PostCard({ post, variant = "md", className }: PostCardProps) {
       >
         <Link
           href={href}
-          className="sm:w-[42%] sm:shrink-0 w-full block aspect-[16/10] sm:aspect-auto sm:h-full sm:border-r-2 border-b-2 sm:border-b-0 border-ink-950 overflow-hidden bg-ink-800"
+          className="sm:w-[42%] sm:shrink-0 w-full block aspect-[16/10] sm:aspect-[4/3] sm:border-r-2 border-b-2 sm:border-b-0 border-ink-950 overflow-hidden bg-ink-800"
         >
           <CardCover post={post} coverSize="lg" />
         </Link>
-        <div className="flex-1 flex flex-col gap-2 sm:gap-2.5 p-3 sm:p-4 h-full w-full">
+        <div className="flex-1 flex flex-col gap-2 sm:gap-2.5 p-3 sm:p-4 h-full w-full min-h-0">
           <div className="flex flex-wrap items-center gap-2">
             {post.isTrending ? <Badge variant="news">Trending</Badge> : null}
             {post.isFeatured ? <Badge variant="ink">Featured</Badge> : null}
             <CategoryRibbons post={post} />
           </div>
           <Link href={href}>
-            <h3 className="font-headline text-[15px] sm:text-lg uppercase leading-[1.05] tracking-tight group-hover:text-news transition-colors">
+            <h3 className="font-headline text-[15px] sm:text-lg uppercase leading-[1.05] tracking-tight group-hover:text-news transition-colors line-clamp-3 sm:line-clamp-4">
               {post.title}
             </h3>
           </Link>
           {post.excerpt ? (
-            <p className="text-[12px] sm:text-[13px] text-ink-800 line-clamp-3 leading-relaxed">
+            <p className="text-[12px] sm:text-[13px] text-ink-800 line-clamp-2 sm:line-clamp-3 leading-relaxed">
               {post.excerpt}
             </p>
           ) : null}
           <PostMeta post={post} compact />
-          <div className="pt-1 mt-auto">
-            <Link href={href} className="inline-flex">
+          <div className="pt-1 mt-auto inline-flex items-center gap-2 flex-wrap">
+            <Link href={href} className="inline-flex shrink-0">
               <ReadCta variant="lg" />
             </Link>
+            <CardShareButton post={post} size="md" />
+            <CardSaveButton post={post} size="md" />
           </div>
         </div>
       </article>
@@ -294,11 +497,11 @@ export function PostCard({ post, variant = "md", className }: PostCardProps) {
 
   if (variant === "row") {
     return (
-      <article className={cn("group flex gap-3 items-start bg-white relative", className)}>
+      <article className={cn("group flex gap-3 items-stretch bg-white relative h-full w-full", className)}>
         <Link href={href} className="flex-shrink-0 w-20 sm:w-24 aspect-[4/3] border-2 border-ink-950 overflow-hidden bg-ink-800 shadow-hard-sm">
           <CardCover post={post} coverSize="sm" />
         </Link>
-        <div className="min-w-0 flex-1 flex flex-col gap-1.5 py-0.5 pr-8">
+        <div className="min-w-0 flex-1 flex flex-col gap-1.5 py-0.5">
           <div className="flex flex-wrap items-center gap-1.5">
             {cat ? (
               <span
@@ -318,9 +521,13 @@ export function PostCard({ post, variant = "md", className }: PostCardProps) {
             <div className="text-[11px] text-ink-600 font-semibold uppercase tracking-wide">
               {formatRelative(post.publishedAt ?? post.createdAt)}
             </div>
-            <Link href={href} className="hover:text-news text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1 text-ink-700 shrink-0">
-              Read <ArrowRight className="w-3 h-3" />
-            </Link>
+            <div className="inline-flex items-center gap-2 shrink-0">
+              <Link href={href} className="hover:text-news text-[10px] font-bold uppercase tracking-widest inline-flex items-center gap-1 text-ink-700">
+                Read <ArrowRight className="w-3 h-3" />
+              </Link>
+              <CardShareButton post={post} size="sm" />
+              <CardSaveButton post={post} size="sm" />
+            </div>
           </div>
         </div>
       </article>
@@ -331,7 +538,7 @@ export function PostCard({ post, variant = "md", className }: PostCardProps) {
     return (
       <article
         className={cn(
-          "group flex flex-col bg-white border-2 border-ink-950 hover:shadow-hard-sm transition-shadow card-hover",
+          "group flex flex-col bg-white border-2 border-ink-950 hover:shadow-hard-sm transition-shadow card-hover h-full w-full",
           className,
         )}
       >
@@ -353,10 +560,12 @@ export function PostCard({ post, variant = "md", className }: PostCardProps) {
             <p className="text-[12px] sm:text-sm text-ink-700 line-clamp-2 leading-relaxed">{post.excerpt}</p>
           ) : null}
           <PostMeta post={post} compact />
-          <div className="pt-1 mt-auto">
-            <Link href={href}>
+          <div className="pt-1 mt-auto inline-flex items-center gap-2 flex-wrap">
+            <Link href={href} className="inline-flex">
               <ReadCta variant="sm" />
             </Link>
+            <CardShareButton post={post} size="sm" />
+            <CardSaveButton post={post} size="sm" />
           </div>
         </div>
       </article>
@@ -366,7 +575,7 @@ export function PostCard({ post, variant = "md", className }: PostCardProps) {
   return (
     <article
       className={cn(
-        "group flex flex-col bg-white border-2 border-ink-950 hover:shadow-hard transition-shadow card-hover",
+        "group flex flex-col bg-white border-2 border-ink-950 hover:shadow-hard transition-shadow card-hover h-full w-full",
         className,
       )}
     >
@@ -388,10 +597,12 @@ export function PostCard({ post, variant = "md", className }: PostCardProps) {
           <p className="text-[11px] sm:text-[12px] text-ink-800 line-clamp-2 leading-relaxed">{post.excerpt}</p>
         ) : null}
         <PostMeta post={post} compact />
-        <div className="pt-0.5 mt-auto">
-          <Link href={href}>
+        <div className="pt-0.5 mt-auto inline-flex items-center gap-2 flex-wrap">
+          <Link href={href} className="inline-flex">
             <ReadCta variant="md" />
           </Link>
+          <CardShareButton post={post} size="md" />
+          <CardSaveButton post={post} size="md" />
         </div>
       </div>
     </article>

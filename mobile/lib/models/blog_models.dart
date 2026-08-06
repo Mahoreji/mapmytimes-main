@@ -212,6 +212,27 @@ class TagResponse {
       );
 }
 
+class TocEntry {
+  final String title;
+  final String? slug;
+  final int? level;
+  final String? parentSlug;
+
+  const TocEntry({
+    required this.title,
+    this.slug,
+    this.level,
+    this.parentSlug,
+  });
+
+  factory TocEntry.fromJson(Map<String, dynamic> j) => TocEntry(
+        title: (j['title'] ?? j['text'] ?? j['name'] ?? j['heading'] ?? '').toString(),
+        slug: (j['slug'] ?? j['id'] ?? j['anchor'])?.toString(),
+        level: (j['level'] is num) ? (j['level'] as num).toInt() : int.tryParse((j['level'] ?? '').toString()),
+        parentSlug: (j['parentSlug'] ?? j['parent'])?.toString(),
+      );
+}
+
 // =============================================================================
 // Blog Post (summary + detail)
 // =============================================================================
@@ -227,6 +248,7 @@ class BlogPostSummaryResponse {
   final AuthorResponse? author;
   final List<CategoryResponse>? categories;
   final List<TagResponse>? tags;
+  final List<TocEntry>? tableOfContents;
   final PostStatus status;
   final PostType postType;
   final String language;
@@ -252,6 +274,7 @@ class BlogPostSummaryResponse {
     this.author,
     this.categories,
     this.tags,
+    this.tableOfContents,
     required this.status,
     required this.postType,
     this.language = 'en',
@@ -266,9 +289,21 @@ class BlogPostSummaryResponse {
     this.updatedAt,
   });
 
-  String get cover => Env.resolveImgUrl(featuredImageUrl ?? YouTubeUtil.thumbnailFor(videoUrl ?? shortVideoUrl));
+  String get cover => Env.resolveImgUrl(
+        featuredImageUrl ??
+            YouTubeUtil.thumbnailFor(videoUrl ?? shortVideoUrl) ??
+            '',
+      );
   String get shortVideo => Env.resolveImgUrl(shortVideoUrl ?? videoUrl);
   String? get youtubeVideoId => YouTubeUtil.extractVideoId(videoUrl ?? shortVideoUrl);
+
+  String? get instagramMediaId =>
+      InstagramUtil.extractMediaId(videoUrl ?? shortVideoUrl);
+  bool get isInstagramReel =>
+      InstagramUtil.isInstagramUrl(videoUrl ?? shortVideoUrl) &&
+      InstagramUtil.isReelUrl(videoUrl ?? shortVideoUrl);
+  bool get isInstagramPost =>
+      InstagramUtil.isInstagramUrl(videoUrl ?? shortVideoUrl);
 
   factory BlogPostSummaryResponse.fromJson(Map<String, dynamic> j) {
     DateTime? tryDt(Object? v) {
@@ -300,9 +335,22 @@ class BlogPostSummaryResponse {
     String? imageFrom(Object? v) {
       final s = str(v);
       if (s != null) return s;
-      if (v is Map<String, dynamic>) {
-        return str(v['url']) ?? str(v['mediaUrl']) ?? str(v['fileUrl']) ?? str(v['imageUrl']) ?? str(v['src']);
+      if (v is Map) {
+        final m = Map<String, dynamic>.from(v as Map);
+        return str(m['url']) ?? str(m['mediaUrl']) ?? str(m['fileUrl']) ?? str(m['imageUrl']) ?? str(m['src']) ?? str(m['source']);
       }
+      return null;
+    }
+
+    String? extractCoverImage(Object? featuredImage, Object? featuredImageUrl, Object? cover, Object? coverImage) {
+      final a = imageFrom(featuredImage);
+      if (a != null && a.isNotEmpty) return a;
+      final b = imageFrom(featuredImageUrl);
+      if (b != null && b.isNotEmpty) return b;
+      final c = imageFrom(cover);
+      if (c != null && c.isNotEmpty) return c;
+      final d = imageFrom(coverImage);
+      if (d != null && d.isNotEmpty) return d;
       return null;
     }
 
@@ -320,12 +368,21 @@ class BlogPostSummaryResponse {
         a = AuthorResponse(id: slugify(s), displayName: s);
       }
     } else {
-      final display = str(j['authorFirstName']) ?? str(j['authorName']) ?? str(j['authorDisplayName']) ?? str(j['userId']);
-      if (display != null) {
+      final fn = str(j['authorFirstName']) ?? '';
+      final ln = str(j['authorLastName']) ?? '';
+      final display = (fn + (fn.isNotEmpty && ln.isNotEmpty ? ' ' : '') + ln).trim().isNotEmpty
+          ? (fn + (fn.isNotEmpty && ln.isNotEmpty ? ' ' : '') + ln).trim()
+          : (str(j['authorName']) ?? str(j['authorDisplayName']) ?? str(j['userId']) ?? '');
+      final av = str(j['authorAvatarUrl']) ?? str(j['authorAvatar']);
+      final em = str(j['authorEmail']);
+      final bio = str(j['authorBio']) ?? str(j['authorDescription']) ?? str(j['authorBiography']);
+      if (display.isNotEmpty || av != null || em != null) {
         a = AuthorResponse(
-          id: str(j['authorId']) ?? str(j['userId']) ?? slugify(display),
+          id: str(j['authorId']) ?? str(j['userId']) ?? (display.isNotEmpty ? slugify(display) : Object().hashCode.abs().toString()),
           displayName: display,
-          email: str(j['authorEmail']),
+          email: em,
+          avatarUrl: av,
+          bio: bio,
         );
       }
     }
@@ -352,19 +409,33 @@ class BlogPostSummaryResponse {
         return TagResponse(id: sl, name: s, slug: sl);
       }).toList(growable: false);
     }
+    List<TocEntry>? toc;
+    if (j['tableOfContents'] != null && j['tableOfContents'] is List) {
+      toc = (j['tableOfContents'] as List<dynamic>).map((e) {
+        if (e is Map) {
+          try {
+            return TocEntry.fromJson(Map<String, dynamic>.from(e as Map));
+          } catch (_) {}
+        }
+        final s = e.toString().trim();
+        return TocEntry(title: s, slug: slugify(s));
+      }).where((t) => t.title.isNotEmpty).toList(growable: false);
+      if (toc.isEmpty) toc = null;
+    }
 
     return BlogPostSummaryResponse(
       id: str(j['id']) ?? '',
       title: str(j['title']) ?? '',
       slug: str(j['slug']) ?? '',
       excerpt: str(j['excerpt']) ?? str(j['summary']) ?? str(j['description']),
-      featuredImageUrl: imageFrom(j['featuredImageUrl']) ?? imageFrom(j['featuredImage']) ?? imageFrom(j['coverImage']) ?? imageFrom(j['cover']),
+      featuredImageUrl: extractCoverImage(j['featuredImage'], j['featuredImageUrl'], j['cover'], j['coverImage']),
       videoUrl: imageFrom(j['videoUrl']) ?? imageFrom(j['video']) ?? imageFrom(j['primaryVideoUrl']),
       shortVideoUrl: imageFrom(j['shortVideoUrl']) ?? imageFrom(j['shortVideo']) ?? imageFrom(j['shortsUrl']) ?? imageFrom(j['primaryVideoUrl']),
       sectionSlug: str(j['sectionSlug']) ?? str(j['section_slug']),
       author: a,
       categories: cats,
       tags: tags,
+      tableOfContents: toc,
       status: statusFromString(str(j['status'])),
       postType: postTypeFromString(str(j['postType'])),
       language: str(j['language']) ?? 'en',
@@ -385,6 +456,7 @@ class BlogPostResponse extends BlogPostSummaryResponse {
   final String? content;
   final String? contentHtml;
   final List<BlogMedia>? media;
+  final List<Map<String, dynamic>>? contentBlocks;
 
   const BlogPostResponse({
     required super.id,
@@ -413,6 +485,7 @@ class BlogPostResponse extends BlogPostSummaryResponse {
     this.content,
     this.contentHtml,
     this.media,
+    this.contentBlocks,
   });
 
   factory BlogPostResponse.fromJson(Map<String, dynamic> j) {
@@ -448,6 +521,17 @@ class BlogPostResponse extends BlogPostSummaryResponse {
       }
       return v.toString();
     }
+    List<Map<String, dynamic>>? cbs;
+    if (j['contentBlocks'] != null && j['contentBlocks'] is List) {
+      cbs = <Map<String, dynamic>>[];
+      for (final e in (j['contentBlocks'] as List<dynamic>)) {
+        if (e is Map) {
+          try { cbs.add(Map<String, dynamic>.from(e as Map)); }
+          catch (_) {}
+        }
+      }
+      if (cbs.isEmpty) cbs = null;
+    }
     return BlogPostResponse(
       id: s.id,
       title: s.title,
@@ -475,6 +559,7 @@ class BlogPostResponse extends BlogPostSummaryResponse {
       content: asPlainText(j['content']) ?? asPlainText(j['body']),
       contentHtml: asPlainText(j['contentHtml']) ?? asPlainText(j['bodyHtml']) ?? asPlainText(j['content']),
       media: medias,
+      contentBlocks: cbs,
     );
   }
 }
@@ -592,14 +677,82 @@ iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
   }
 }
 
+// =============================================================================
+// Instagram Reels / Post URL helpers
+// =============================================================================
+class InstagramUtil {
+  InstagramUtil._();
+
+  static final RegExp _igRe = RegExp(
+    r'instagram\.com\/(?:p|reel|reels|tv|stories\/[^/]+)\/([A-Za-z0-9_-]+)',
+    caseSensitive: false,
+  );
+
+  static bool isInstagramUrl(String? url) {
+    if (url == null || url.isEmpty) return false;
+    return url.toLowerCase().contains('instagram.com');
+  }
+
+  static bool isReelUrl(String? url) {
+    if (url == null || url.isEmpty) return false;
+    final u = url.toLowerCase();
+    return u.contains('/reel/') || u.contains('/reels/');
+  }
+
+  static String? extractMediaId(String? url) {
+    if (url == null || url.isEmpty) return null;
+    final u = url.trim();
+    // Bare media ID (no dots, >= 8 chars alnum)
+    final bare = RegExp(r'^[A-Za-z0-9_-]{8,}$').firstMatch(u);
+    if (bare != null && !u.contains('.')) return u;
+    final m = _igRe.firstMatch(u);
+    if (m != null && m.groupCount >= 1) return m.group(1);
+    return null;
+  }
+
+  static String iframeEmbed(String mediaId, {bool autoplay = false}) {
+    final params = <String>[
+      if (autoplay) 'autoplay=1',
+      'mute=1',
+      'hidecaption=1',
+      'omitscript=1',
+    ].join('&');
+    return '''
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+html,body{margin:0;padding:0;height:100%;background:#0A0A0A;overflow:hidden;}
+iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+</head>
+<body>
+<iframe src="https://www.instagram.com/p/$mediaId/embed/?$params" allow="autoplay;clipboard-write;encrypted-media;picture-in-picture;web-share" allowfullscreen></iframe>
+</body>
+</html>''';
+  }
+
+  static String externalUrl(String mediaId, {bool isReel = true}) {
+    return isReel
+        ? 'https://www.instagram.com/reel/$mediaId/'
+        : 'https://www.instagram.com/p/$mediaId/';
+  }
+}
+
 class BlogMedia {
   final String id;
   final String? url;
   final String? mimeType;
+  final String? type;
   final int? sizeBytes;
   final String? caption;
+  final String? description;
+  final String? alt;
   final int? width;
   final int? height;
+  final int? sortOrder;
+  final String? groupKey;
   final int? durationSeconds;
   final String? thumbnailUrl;
 
@@ -607,24 +760,43 @@ class BlogMedia {
     required this.id,
     this.url,
     this.mimeType,
+    this.type,
     this.sizeBytes,
     this.caption,
+    this.description,
+    this.alt,
     this.width,
     this.height,
+    this.sortOrder,
+    this.groupKey,
     this.durationSeconds,
     this.thumbnailUrl,
   });
 
+  bool get isImage {
+    final t = (type ?? '').toString().toUpperCase();
+    if (t == 'IMAGE' || t == 'IMG' || t == 'PHOTO' || t == 'PICTURE') return true;
+    final m = (mimeType ?? '').toString().toLowerCase();
+    if (m.startsWith('image/')) return true;
+    final u = (url ?? '').toString().toLowerCase();
+    return u.endsWith('.jpg') || u.endsWith('.jpeg') || u.endsWith('.png') || u.endsWith('.gif') || u.endsWith('.webp') || u.endsWith('.avif');
+  }
+
   factory BlogMedia.fromJson(Map<String, dynamic> j) => BlogMedia(
         id: j['id'].toString(),
-        url: j['url'] as String? ?? j['fileUrl'] as String? ?? j['mediaUrl'] as String?,
-        mimeType: j['mimeType'] as String? ?? j['type'] as String? ?? j['mediaType'] as String?,
+        url: (j['mediaUrl'] as String?) ?? (j['url'] as String?) ?? (j['fileUrl'] as String?) ?? (j['imageUrl'] as String?) ?? (j['src'] as String?),
+        mimeType: (j['mimeType'] as String?) ?? (j['type'] as String?) ?? (j['mediaType'] as String?),
+        type: (j['type'] as String?) ?? (j['mediaType'] as String?),
         sizeBytes: (j['sizeBytes'] as num?)?.toInt(),
-        caption: j['caption'] as String?,
+        caption: (j['caption'] as String?) ?? (j['subtitle'] as String?) ?? (j['name'] as String?),
+        description: (j['description'] as String?) ?? (j['subtitle'] as String?) ?? (j['alt'] as String?),
+        alt: (j['alt'] as String?) ?? (j['name'] as String?) ?? (j['caption'] as String?),
         width: (j['width'] as num?)?.toInt(),
         height: (j['height'] as num?)?.toInt(),
+        sortOrder: (j['sortOrder'] as num?)?.toInt() ?? (j['displayOrder'] as num?)?.toInt() ?? (j['order'] as num?)?.toInt(),
+        groupKey: (j['groupKey'] as String?) ?? (j['subtitleGroupIndex']?.toString()),
         durationSeconds: (j['durationSeconds'] as num?)?.toInt(),
-        thumbnailUrl: j['thumbnailUrl'] as String?,
+        thumbnailUrl: (j['thumbnailUrl'] as String?) ?? (j['thumb'] as String?),
       );
 }
 

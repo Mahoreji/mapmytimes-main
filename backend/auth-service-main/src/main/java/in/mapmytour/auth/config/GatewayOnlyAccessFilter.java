@@ -98,6 +98,11 @@ public class GatewayOnlyAccessFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
+        String method = request.getMethod();
+
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            return true;
+        }
 
         // health checks are fine to bypass if accessed directly from infra
         if (path.equals("/health") || path.equals("/api/v1/auth/health")) {

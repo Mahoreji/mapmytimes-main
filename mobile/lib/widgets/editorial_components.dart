@@ -9,10 +9,12 @@
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../core/theme/colors.dart';
 import '../models/blog_models.dart';
+import 'news_card.dart';
 
 // ============================================================================
 // Pulsing Live Dot — microphone motif red pulsing indicator
@@ -357,6 +359,18 @@ class SecondaryGridCard extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final catName =
         (post.categories?.isNotEmpty ?? false) ? post.categories!.first.name : '';
+    final date = post.publishedAt != null
+        ? DateFormat('dd MMM yyyy').format(post.publishedAt!.toLocal())
+        : '';
+    final reading = (post.readingTimeMinutes ?? 0) > 0
+        ? '${post.readingTimeMinutes} MIN'
+        : '';
+    final metaParts = <String>[
+      if (date.isNotEmpty) date,
+      if (reading.isNotEmpty) reading,
+    ];
+    final metaText = metaParts.join('  ·  ');
+
     return InkWell(
       onTap: onTap,
       splashFactory: NoSplash.splashFactory,
@@ -390,7 +404,7 @@ class SecondaryGridCard extends StatelessWidget {
             ),
             Expanded(
               child: Container(
-                constraints: const BoxConstraints(minHeight: 92),
+                constraints: const BoxConstraints(minHeight: 110),
                 padding: const EdgeInsets.all(12),
                 color: dark ? MmtColors.ink900 : Colors.white,
                 child: Column(
@@ -424,17 +438,182 @@ class SecondaryGridCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     const Spacer(),
-                    if ((post.readingTimeMinutes ?? 0) > 0)
-                      Text(
-                        '${post.readingTimeMinutes} MIN',
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                          color: dark ? Colors.white54 : MmtColors.textFaint,
-                          height: 1.0,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            metaText,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: dark ? Colors.white54 : MmtColors.textFaint,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CardShareButton(post: post, iconSize: 18),
+                            const SizedBox(width: 10),
+                            CardSaveButton(post: post, iconSize: 18),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================================
+// PersonalizedPickCard — EXACT pixel match For You reference card
+//   * SOLID 100% opaque background (no glass, no blur, no alpha)
+//   * Soft diffused drop shadow (10 down, 24 blur, ink950 7%)
+//   * 1px ink200/white15 hairline rounded border
+//   * Big category chip size 15 spacing 2.0 W800 news red
+//   * XL title Archivo Black 19 height 1.1 W900
+//   * Big date 14px muted text
+//   * LARGE share/save 40px red circular buttons
+// ============================================================================
+class PersonalizedPickCard extends StatelessWidget {
+  final BlogPostSummaryResponse post;
+  final VoidCallback? onTap;
+  const PersonalizedPickCard({
+    super.key,
+    required this.post,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final catName =
+        (post.categories?.isNotEmpty ?? false) ? post.categories!.first.name : 'NEWS';
+    final date = post.publishedAt != null
+        ? DateFormat('dd MMM yyyy').format(post.publishedAt!.toLocal())
+        : '';
+    const double radius = 20;
+
+    return InkWell(
+      onTap: onTap,
+      splashFactory: NoSplash.splashFactory,
+      hoverColor: Colors.transparent,
+      borderRadius: BorderRadius.circular(radius),
+      child: Container(
+        decoration: BoxDecoration(
+          color: dark ? MmtColors.ink900 : Colors.white,
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(
+            color: dark ? Colors.white.withValues(alpha: 0.16) : MmtColors.ink200,
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: (dark ? Colors.black : MmtColors.ink950).withValues(alpha: 0.08),
+              offset: const Offset(0, 10),
+              blurRadius: 22,
+              spreadRadius: -2,
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ========== 4:3 Cover image rounded at top only ==========
+            AspectRatio(
+              aspectRatio: 4 / 3,
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(radius - 2)),
+                child: post.cover.isEmpty
+                    ? Container(
+                        color: dark ? MmtColors.ink800 : MmtColors.chipBg,
+                        child: const Icon(Icons.article_rounded, size: 42),
+                      )
+                    : CachedNetworkImage(
+                        imageUrl: post.cover,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(color: dark ? MmtColors.ink800 : MmtColors.chipBg),
+                        errorWidget: (_, __, ___) => Container(
+                          color: dark ? MmtColors.ink800 : MmtColors.chipBg,
+                          child: const Icon(Icons.broken_image_rounded),
                         ),
                       ),
+              ),
+            ),
+
+            // ========== Content area ==========
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // --- BIG Uppercase category NEWS red ---
+                    Text(
+                      catName.toUpperCase(),
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 2.0,
+                        color: MmtColors.news,
+                        height: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // --- XL Archivo Black title ---
+                    Text(
+                      post.title,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.getFont(
+                        'Archivo Black',
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.1,
+                        height: 1.10,
+                        color: dark ? Colors.white : MmtColors.ink950,
+                      ),
+                    ),
+                    const Spacer(),
+                    // --- Bottom row: big date LEFT, share save RIGHT (big 40px dia) ---
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            date,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.1,
+                              color: dark ? Colors.white54 : MmtColors.textFaint,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            CardShareButton(post: post, iconSize: 18),
+                            const SizedBox(width: 12),
+                            CardSaveButton(post: post, iconSize: 18),
+                          ],
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),

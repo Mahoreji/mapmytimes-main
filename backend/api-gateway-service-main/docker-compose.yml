@@ -28,7 +28,7 @@ services:
       SERVER_ADDRESS: 0.0.0.0 # Listen on all interfaces for Docker network access (nginx connects via network)
       # Note: Do NOT set MANAGEMENT_SERVER_ADDRESS - actuator uses same address as server when on same port
       SPRING_PROFILES_ACTIVE: prod
-      SPRING_APPLICATION_NAME: mapmytour-api-gateway
+      SPRING_APPLICATION_NAME: mapmytimes-api-gateway
 
       # Production: Uses Docker container names for service discovery
       # Override default URLs (localhost) to use Docker container names on the same network
@@ -73,7 +73,7 @@ services:
       # Logging
       LOG_LEVEL_ROOT: INFO
       LOG_LEVEL_GATEWAY: INFO
-      LOG_LEVEL_MAPMYTOUR: INFO
+      LOG_LEVEL_MAPMYTIMES: INFO
 
       # Circuit Breaker Timeouts (Production optimized)
       CB_PAYMENT_TIMEOUT: 30s # Increased for Cashfree API calls

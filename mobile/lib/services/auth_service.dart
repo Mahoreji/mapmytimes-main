@@ -5,6 +5,7 @@
 // =============================================================================
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/env.dart';
 import '../models/auth_models.dart';
@@ -220,16 +221,45 @@ class AuthService {
   }
 
   // ===========================================================================
-  // OAUTH2 — external providers (google / facebook) via flutter_web_auth_2 URL
+  // OAUTH2 — external providers (google / facebook)
+  //   • Web/PWA (localhost:5173 / www.mapmytimes.com):
+  //        redirect_uri = <browser-origin>/auth/oauth2/redirect
+  //   • Native iOS/Android (deep link):
+  //        redirect_uri = mapmytimes://oauth-callback
+  //   • Backend endpoint = /api/v1/auth/oauth2/login/{provider}
+  //        → WITHOUT ?format=json backend returns HTTP 302 directly to Google
+  //          consent page, so the browser handles the redirect automatically
+  //          when we use url_launcher with webOnlyWindowName:'_self'.
   // ===========================================================================
-  Uri oauth2AuthorizeUrl(String provider, {String? redirectScheme}) {
-    final scheme = redirectScheme ?? Env.linkScheme;
-    final q = <String, Object?>{
-      'provider': provider,
-      'redirect_uri': '$scheme://oauth-callback',
-    };
-    return Uri.parse('${Env.authBaseUrl.isEmpty ? Env.apiBaseUrl : Env.authBaseUrl}$_authV1/oauth2/authorize${_qs(q).replaceFirst('?', '')}');
+  Uri oauth2AuthorizeUrl(String provider, {String? redirectOverride}) {
+    final base = Env.authBaseUrl.isEmpty ? Env.apiBaseUrl : Env.authBaseUrl;
+    final baseClean = base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+
+    String redirect;
+    if (redirectOverride != null && redirectOverride.isNotEmpty) {
+      redirect = redirectOverride;
+    } else if (kIsWeb) {
+      try {
+        final origin = '${Uri.base.scheme}://${Uri.base.host}${Uri.base.hasPort ? ':${Uri.base.port}' : ''}';
+        redirect = '$origin/auth/oauth2/redirect';
+      } catch (_) {
+        redirect = '${Env.siteUrl}/auth/oauth2/redirect';
+      }
+    } else {
+      final scheme = Env.linkScheme;
+      redirect = '$scheme://oauth-callback';
+    }
+
+    final q = <String, Object?>{'redirect_uri': redirect};
+    final qs = _qs(q);
+    return Uri.parse('$baseClean$_authV1/oauth2/login/$provider$qs');
   }
+
+  /// Shorthand for Google OAuth2 initiation URI.
+  Uri googleOAuthUrl({String? redirectOverride}) => oauth2AuthorizeUrl('google', redirectOverride: redirectOverride);
+
+  /// Shorthand for Facebook OAuth2 initiation URI.
+  Uri facebookOAuthUrl({String? redirectOverride}) => oauth2AuthorizeUrl('facebook', redirectOverride: redirectOverride);
 
   // ===========================================================================
   // INTERNAL: persist tokens to SharedPreferences + hydrate BlogService bearer

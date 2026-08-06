@@ -46,12 +46,12 @@ class MmtColors {
 class MmtTokens {
   MmtTokens._();
 
-  // Border radii — news platform prefers sharp squares with small rounding
-  static const double radiusXs = 2.0;
-  static const double radiusSm = 4.0;
-  static const double radiusMd = 8.0;
-  static const double radiusLg = 12.0;
-  static const double radiusXl = 16.0;
+  // Border radii — Liquid Glass: organic rounded shapes (prev sharp squares)
+  static const double radiusXs = 4.0;
+  static const double radiusSm = 8.0;
+  static const double radiusMd = 14.0;
+  static const double radiusLg = 20.0;
+  static const double radiusXl = 28.0;
   static const double radiusFull = 999.0;
 
   // Spacing scale
@@ -64,7 +64,44 @@ class MmtTokens {
   static const double xxl = 32.0;
   static const double sectionGutter = 40.0;
 
-  // Shadows — hard neobrutal — always dark & bold news drop
+  // ================ LIQUID GLASS TOKENS ================
+  // Blur sigmas for BackdropFilter / ImageFilter.blur
+  static const double glassBlurSm = 12.0;
+  static const double glassBlurMd = 20.0;
+  static const double glassBlurLg = 30.0;
+
+  // Frosted surface alpha backgrounds
+  static Color glassBgLight(double alpha) => Colors.white.withValues(alpha: alpha);
+  static Color glassBgDark(double alpha) => MmtColors.ink950.withValues(alpha: alpha);
+
+  // Hairline border 0.8 px, translucent
+  static BorderSide glassBorderLight() => BorderSide(color: Colors.white.withValues(alpha: 0.18), width: 0.8);
+  static BorderSide glassBorderDark() => BorderSide(color: MmtColors.ink950.withValues(alpha: 0.12), width: 0.8);
+  static BorderSide glassBorder({required bool dark}) => dark ? glassBorderLight() : glassBorderDark();
+
+  // Corners: Liquid Glass smooth radius helpers
+  static BorderRadius glassRadiusSm() => BorderRadius.circular(radiusSm);
+  static BorderRadius glassRadiusMd() => BorderRadius.circular(radiusMd);
+  static BorderRadius glassRadiusLg() => BorderRadius.circular(radiusLg);
+  static BorderRadius glassRadiusXl() => BorderRadius.circular(radiusXl);
+  static BorderRadius glassRadiusPill() => BorderRadius.circular(radiusFull);
+
+  // Ambient soft ambient drop (not hard neobrutal) — soft diffuse for glass cards
+  static List<BoxShadow> glassShadowSm() => [
+        BoxShadow(color: MmtColors.ink950.withValues(alpha: 0.10), offset: const Offset(0, 2), blurRadius: 6, spreadRadius: 0),
+      ];
+  static List<BoxShadow> glassShadowMd() => [
+        BoxShadow(color: MmtColors.ink950.withValues(alpha: 0.14), offset: const Offset(0, 6), blurRadius: 18, spreadRadius: 0),
+        BoxShadow(color: MmtColors.ink950.withValues(alpha: 0.06), offset: const Offset(0, 2), blurRadius: 4, spreadRadius: 0),
+      ];
+  static List<BoxShadow> glassShadowNav() => [
+        BoxShadow(color: MmtColors.ink950.withValues(alpha: 0.22), offset: const Offset(0, -4), blurRadius: 28, spreadRadius: 0),
+      ];
+  static List<BoxShadow> glassShadowHeader() => [
+        BoxShadow(color: MmtColors.ink950.withValues(alpha: 0.10), offset: const Offset(0, 4), blurRadius: 18, spreadRadius: 0),
+      ];
+
+  // Compat aliases — keep hard shadows for places still using brutalist style
   static const List<BoxShadow> hard = [
     BoxShadow(
       color: MmtColors.ink950,
@@ -96,8 +133,9 @@ class MmtTokens {
     ),
   ];
 
-  // Borders — neobrutal 2px solid everywhere
+  // Borders — brutalist compat + new hairline glass 0.8px
   static const double borderWidth = 2.0;
+  static const double glassHairline = 0.8;
   static BorderSide get inkBorder => const BorderSide(color: MmtColors.ink950, width: borderWidth);
   static BorderSide get newsBorder => const BorderSide(color: MmtColors.news, width: borderWidth);
   static BorderSide get dividerBorder => const BorderSide(color: MmtColors.divider, width: 1.0);

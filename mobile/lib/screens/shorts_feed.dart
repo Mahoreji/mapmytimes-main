@@ -162,13 +162,52 @@ class _ShortTile extends StatelessWidget {
                 Row(
                   children: [
                     Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(shape: BoxShape.circle, color: MmtColors.news),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        color: post.isInstagramReel
+                            ? Colors.transparent
+                            : MmtColors.news,
+                        gradient: post.isInstagramReel
+                            ? const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  Color(0xFF833AB4),
+                                  Color(0xFFFD1D1D),
+                                  Color(0xFFF77737),
+                                  Color(0xFFFCAF45),
+                                ],
+                              )
+                            : null,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            post.isInstagramReel ? 'REEL' : 'SHORTS',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.6,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Text(
-                      'SHORTS · ${index + 1}/$total',
+                      '${index + 1}/$total',
                       style: const TextStyle(
                         color: MmtColors.news,
                         fontWeight: FontWeight.w900,

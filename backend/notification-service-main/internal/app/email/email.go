@@ -30,7 +30,7 @@ func NewService(cfg *config.Config) *Service {
 // SendPlainEmail sends a plain text email
 func (s *Service) SendPlainEmail(to, subject, body string) error {
 	m := gomail.NewMessage()
-	m.SetHeader("From", m.FormatAddress(s.config.EmailUsername, "Map My Tour"))
+	m.SetHeader("From", m.FormatAddress(s.config.EmailUsername, "MapMyTimes"))
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/plain", body)
@@ -84,7 +84,7 @@ func (s *Service) SendHTMLEmailWithAttachments(to, subject, body string, attachm
 	}
 	
 	m := gomail.NewMessage()
-	m.SetHeader("From", m.FormatAddress(s.config.EmailUsername, "Map My Tour"))
+	m.SetHeader("From", m.FormatAddress(s.config.EmailUsername, "MapMyTimes"))
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", subject)
 	
@@ -151,7 +151,7 @@ func (s *Service) SendTemplatedEmail(to, subject, templateName string, data Temp
 	}
 
 	m := gomail.NewMessage()
-	m.SetHeader("From", m.FormatAddress(s.config.EmailUsername, "Map My Tour"))
+	m.SetHeader("From", m.FormatAddress(s.config.EmailUsername, "MapMyTimes"))
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/html", htmlBody)
@@ -187,7 +187,7 @@ func (s *Service) SendEmail(to, subject, body string) error {
 // SendEmailWithAttachment sends email with file attachments
 func (s *Service) SendEmailWithAttachment(to, subject, body string, attachmentPaths []string) error {
 	m := gomail.NewMessage()
-	m.SetHeader("From", m.FormatAddress(s.config.EmailUsername, "Map My Tour"))
+	m.SetHeader("From", m.FormatAddress(s.config.EmailUsername, "MapMyTimes"))
 	m.SetHeader("To", to)
 	m.SetHeader("Subject", subject)
 	m.SetBody("text/html", GetHTMLTemplateWithTitle(subject, body))

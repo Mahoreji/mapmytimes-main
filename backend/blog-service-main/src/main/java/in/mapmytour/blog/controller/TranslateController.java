@@ -114,6 +114,15 @@ public class TranslateController {
 
     private final RestClient restClient = RestClient.builder().build();
 
+    @GetMapping
+    public ResponseEntity<APIResponse<TranslateResponse>> translateGetFallback() {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(APIResponse.<TranslateResponse>builder()
+                .success(false)
+                .statusCode(HttpStatus.METHOD_NOT_ALLOWED.value())
+                .message("Translate endpoint requires a POST request with JSON body: {sourceLang, targetLang, items:[{id,text}]}")
+                .build());
+    }
+
     @PostMapping
     public ResponseEntity<APIResponse<TranslateResponse>> translate(@Valid @RequestBody TranslateRequest request) {
         String src = normalize(request.getSourceLang());

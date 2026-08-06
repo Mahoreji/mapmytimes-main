@@ -44,45 +44,81 @@ public class OAuth2Controller {
     @Value("${app.oauth2.base-url:http://localhost:8081}")
     private String oauth2BaseUrl;
 
+    private String sanitizeBaseUrl(String raw) {
+        if (raw == null) {
+            return "http://localhost:8081";
+        }
+        String s = raw.trim();
+        s = s.replace("`", "");
+        s = s.replace("\"", "");
+        s = s.replace("'", "");
+        if (s.endsWith("/")) {
+            s = s.substring(0, s.length() - 1);
+        }
+        return s;
+    }
+
     /**
-     * Initiate OAuth2 login - MAINTAINS EXISTING FUNCTIONALITY
+     * Initiate OAuth2 login.
+     *
+     * Default behaviour (browser click via <a href>): HTTP 302 redirect to the
+     * provider's OAuth2 consent page, so users never see a raw JSON blob.
+     *
+     * For programmatic API consumers that want the URL string inside a JSON
+     * response: pass the query parameter ?format=json (or ?format=json-pretty).
+     *
+     * Also supports ?redirect_uri= and ?redirectUri= as before.
      */
     @GetMapping("/login/{provider}")
-    public ResponseEntity<APIResponse<String>> initiateOAuth2Login(
+    public Object initiateOAuth2Login(
             @PathVariable String provider,
             @RequestParam(name = "redirect_uri", required = false) String redirectUriParam,
             @RequestParam(name = "redirectUri", required = false) String redirectUriAlias,
+            @RequestParam(name = "format", required = false) String format,
             HttpServletRequest request) {
 
         String redirectUri = (redirectUriParam != null && !redirectUriParam.isBlank()) ? redirectUriParam : redirectUriAlias;
+        final String cleanBase = sanitizeBaseUrl(this.oauth2BaseUrl);
+        final boolean wantJson = "json".equalsIgnoreCase(format) || "json-pretty".equalsIgnoreCase(format);
 
         try {
-            log.info("Initiating OAuth2 login for provider: {}", provider);
+            log.info("Initiating OAuth2 login for provider: {} (jsonMode={}, redirectUri={})", provider, wantJson, redirectUri);
 
             // Validate provider
             if (!provider.equals("google") && !provider.equals("facebook")) {
                 log.warn("Unsupported OAuth2 provider attempted: {}", provider);
-                return APIResponseUtil.badRequest("Unsupported OAuth2 provider: " + provider);
+                if (wantJson) {
+                    return APIResponseUtil.badRequest("Unsupported OAuth2 provider: " + provider);
+                }
+                return "redirect:" + frontendUrl + "/login?error=unsupported_provider";
             }
 
             // Always build the authorization URL against the dedicated auth domain,
             // not against the gateway host, so that the OAuth2 handshake is handled
             // directly by the auth-service Spring Security configuration.
-            String authorizationUrl = String.format("%s/oauth2/authorization/%s", oauth2BaseUrl, provider);
+            String authorizationUrl = String.format("%s/oauth2/authorization/%s", cleanBase, provider);
 
             if (redirectUri != null && !redirectUri.trim().isEmpty()) {
-                // URL encode the redirect_uri to handle special characters
                 String encodedRedirectUri = java.net.URLEncoder.encode(redirectUri.trim(), java.nio.charset.StandardCharsets.UTF_8);
-                authorizationUrl += "?redirect_uri=" + encodedRedirectUri;
+                authorizationUrl += (authorizationUrl.contains("?") ? "&" : "?") + "redirect_uri=" + encodedRedirectUri;
                 log.info("OAuth2 redirect_uri parameter added: {}", redirectUri);
             }
 
             log.info("OAuth2 authorization URL generated for {}: {}", provider, authorizationUrl);
-            return APIResponseUtil.success(authorizationUrl, "OAuth2 authorization URL generated");
+
+            if (wantJson) {
+                return APIResponseUtil.success(authorizationUrl, "OAuth2 authorization URL generated");
+            }
+            return org.springframework.http.ResponseEntity.status(org.springframework.http.HttpStatus.FOUND)
+                    .location(java.net.URI.create(authorizationUrl))
+                    .build();
 
         } catch (Exception e) {
             log.error("Failed to initiate OAuth2 login for provider {}: {}", provider, e.getMessage(), e);
-            return APIResponseUtil.error("Failed to initiate OAuth2 login");
+            if (wantJson) {
+                return APIResponseUtil.error("Failed to initiate OAuth2 login");
+            }
+            return "redirect:" + frontendUrl + "/login?error=oauth_init_failed";
         }
     }
 

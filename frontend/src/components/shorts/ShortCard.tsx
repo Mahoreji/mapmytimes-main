@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import type { BlogPostSummaryResponse } from "@/types/blog";
 import { blogApi } from "@/lib/api/blogApi";
@@ -9,6 +8,7 @@ import {
   extractShortMeta,
   ytThumbnails,
   loadYouTubeIframeApi,
+  type ShortVideoPlatform,
 } from "@/lib/youtube";
 import { SITE, formatCount, initials, cn } from "@/lib/utils";
 import type { ShortCardActions } from "./ShortsFeed";
@@ -24,6 +24,12 @@ interface ShortCardProps {
   openComments: (post: BlogPostSummaryResponse) => void;
 }
 
+function _platformLabel(p: ShortVideoPlatform): string {
+  if (p === "instagram-reels") return "REEL";
+  if (p === "youtube-shorts") return "SHORTS";
+  return "VIDEO";
+}
+
 export default function ShortCard({
   post,
   isActive,
@@ -33,12 +39,16 @@ export default function ShortCard({
 }: ShortCardProps) {
   const meta = extractShortMeta(post);
   const thumb = ytThumbnails(meta.videoId);
+  const thumbSrcInitial =
+    meta.platform === "instagram-reels"
+      ? meta.thumbnailUrl || thumb.best
+      : thumb.maxres || thumb.best;
 
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const playerRef = useRef<any>(null);
   const [mountPlayer, setMountPlayer] = useState<boolean>(focus !== "idle");
   const [muted, setMuted] = useState<boolean>(true);
-  const [thumbSrc, setThumbSrc] = useState<string>(thumb.maxres || thumb.best);
+  const [thumbSrc, setThumbSrc] = useState<string>(thumbSrcInitial);
   const [thumbLoaded, setThumbLoaded] = useState<boolean>(false);
   const [like, setLike] = useState<ShortLikeState>({
     liked: false,
@@ -81,27 +91,28 @@ export default function ShortCard({
           blogApi.posts.incrementView(post.id).catch(() => undefined);
         }
       }, 1800);
-      if (playerRef.current && typeof playerRef.current.playVideo === "function") {
+      if (meta.platform === "youtube-shorts" && playerRef.current && typeof playerRef.current.playVideo === "function") {
         try { playerRef.current.playVideo(); } catch {}
       }
       return () => {
         clearTimeout(t);
-        if (playerRef.current && typeof playerRef.current.pauseVideo === "function") {
+        if (meta.platform === "youtube-shorts" && playerRef.current && typeof playerRef.current.pauseVideo === "function") {
           try { playerRef.current.pauseVideo(); } catch {}
         }
       };
     } else {
       viewRef.current.enterAt = null;
-      if (playerRef.current && typeof playerRef.current.pauseVideo === "function") {
+      if (meta.platform === "youtube-shorts" && playerRef.current && typeof playerRef.current.pauseVideo === "function") {
         try { playerRef.current.pauseVideo(); } catch {}
       }
     }
     return undefined;
-  }, [isActive, post.id]);
+  }, [isActive, post.id, meta.platform]);
 
-  // mount + create YT.Player once mountPlayer true
+  // mount + create YT.Player once mountPlayer true (YouTube only; Instagram uses plain iframe)
   useEffect(() => {
     if (!mountPlayer || !meta.videoId) return;
+    if (meta.platform !== "youtube-shorts") return;
     if (createdPlayerRef.current) return;
     if (!iframeRef.current) return;
 
@@ -153,7 +164,7 @@ export default function ShortCard({
     return () => {
       cancelled = true;
     };
-  }, [mountPlayer, meta.videoId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mountPlayer, meta.videoId, meta.platform]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sync mute state to the already-created player
   useEffect(() => {
@@ -240,10 +251,18 @@ export default function ShortCard({
             loading={focus === "idle" ? "lazy" : "eager"}
             decoding="async"
             onError={() => {
-              if (thumbSrc !== thumb.best) {
-                setThumbSrc(thumb.best);
+              if (meta.platform === "instagram-reels") {
+                if (thumbSrc && thumbSrc !== thumb.best) {
+                  setThumbSrc(thumb.best);
+                } else {
+                  setThumbSrc("");
+                }
               } else {
-                setThumbSrc("");
+                if (thumbSrc !== thumb.best) {
+                  setThumbSrc(thumb.best);
+                } else {
+                  setThumbSrc("");
+                }
               }
             }}
             onLoad={() => setThumbLoaded(true)}
@@ -257,19 +276,32 @@ export default function ShortCard({
         )}
       </div>
 
-      {/* IFrame Player */}
+      {/* IFrame Player — branched by platform */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div className="relative h-full w-full overflow-hidden shorts-video-clip">
-          {mountPlayer ? (
+          {mountPlayer && meta.videoId ? (
             <div className="absolute inset-0">
-              <iframe
-                ref={iframeRef}
-                title="YouTube short"
-                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
-                allowFullScreen={false}
-                className="h-[180%] w-[180%] top-[-40%] left-[-40%] pointer-events-none"
-                loading="lazy"
-              />
+              {meta.platform === "instagram-reels" ? (
+                <iframe
+                  key={`ig-${meta.videoId}`}
+                  src={meta.embedUrl}
+                  title="Instagram Reel"
+                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                  allowFullScreen={false}
+                  className="h-[180%] w-[180%] top-[-40%] left-[-40%] pointer-events-none"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              ) : (
+                <iframe
+                  ref={iframeRef}
+                  title="YouTube short"
+                  allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                  allowFullScreen={false}
+                  className="h-[180%] w-[180%] top-[-40%] left-[-40%] pointer-events-none"
+                  loading="lazy"
+                />
+              )}
             </div>
           ) : null}
         </div>
@@ -300,11 +332,18 @@ export default function ShortCard({
       {/* Vertical gradient + overlays */}
       <div className="absolute inset-0 z-20 pointer-events-none bg-gradient-to-t from-black/85 via-black/10 to-black/40" />
 
-      {/* Left side: story / section pill */}
+      {/* Left side: story / section pill — platform specific accent */}
       <div className="absolute top-3 left-3 z-[45] flex items-center gap-2 pointer-events-none">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-news text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 shadow-[0_4px_16px_rgba(0,0,0,0.25)]">
+        <div
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full text-white text-[10px] font-black uppercase tracking-widest px-2.5 py-1 shadow-[0_4px_16px_rgba(0,0,0,0.25)]",
+            meta.platform === "instagram-reels"
+              ? "bg-[conic-gradient(from_210deg,#833AB4,#FD1D1D,#F77737,#FCAF45,#FFDC80,#F77737,#FD1D1D,#833AB4)]"
+              : "bg-news",
+          )}
+        >
           <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-          Shorts
+          {_platformLabel(meta.platform)}
         </div>
         {(post.categories || []).slice(0, 1).map((c, i) => (
           <span
@@ -469,10 +508,10 @@ export default function ShortCard({
               <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
             </div>
             <p className="text-white/85 text-sm font-semibold">
-              This Short is missing a YouTube video ID.
+              Missing video source (YouTube Short or Instagram Reel).
             </p>
-            <p className="mt-2 text-white/70 text-xs">
-              Editors: paste a YouTube URL/video ID into the post content, or add the dedicated <code className="px-1 bg-white/10 rounded">youtubeVideoId</code> field.
+            <p className="mt-2 text-white/70 text-xs leading-relaxed">
+              Editors: paste a YouTube Short or Instagram Reel URL in <code className="px-1 bg-white/10 rounded">primaryVideoUrl</code> / post content, or set fields <code className="px-1 bg-white/10 rounded">youtubeVideoId</code> or <code className="px-1 bg-white/10 rounded">instagramMediaId</code>.
             </p>
           </div>
         </div>

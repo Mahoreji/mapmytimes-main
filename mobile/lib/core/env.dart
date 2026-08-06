@@ -43,15 +43,54 @@ class Env {
   static String get contactEmail =>
       _get('SITE_CONTACT_EMAIL', 'admin@mapmytimes.com');
   static String get contactPhone =>
-      _get('SITE_CONTACT_PHONE', '+91 9893989395');
+      _get('SITE_CONTACT_PHONE', '+91 80859 27274');
 
   // -------------------------------------------------------------------------
   // API base — same as frontend's NEXT_PUBLIC_API_BASE_URL
   // -------------------------------------------------------------------------
-  static String get apiBaseUrl =>
-      _get('API_BASE_URL', 'https://api.mapmytimes.com');
-  static String get authBaseUrl =>
-      _get('AUTH_BASE_URL', _get('API_BASE_URL', 'https://api.mapmytimes.com'));
+  static String get apiBaseUrl {
+    const fromDefine = String.fromEnvironment('API_BASE_URL');
+    if (fromDefine.isNotEmpty) return fromDefine;
+
+    final fromEnv = dotenv.maybeGet('API_BASE_URL');
+    if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
+
+    if (kIsWeb) {
+      try {
+        final host = Uri.base.host;
+        final port = Uri.base.hasPort ? Uri.base.port : 0;
+        if (host == 'localhost' || host == '127.0.0.1') {
+          if (port == 3000 || port == 3001 || port == 3002 || port == 5173 || port == 5174 || port == 5555 || port == 8080) {
+            return 'http://localhost:8090';
+          }
+        }
+      } catch (_) {}
+    }
+    return 'https://api.mapmytimes.com';
+  }
+
+  static String get authBaseUrl {
+    const fromDefine = String.fromEnvironment('AUTH_BASE_URL');
+    if (fromDefine.isNotEmpty) return fromDefine;
+
+    final fromEnv = dotenv.maybeGet('AUTH_BASE_URL');
+    if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
+
+    if (kIsWeb) {
+      try {
+        final host = Uri.base.host;
+        if (host == 'localhost' || host == '127.0.0.1') {
+          final port = Uri.base.hasPort ? Uri.base.port : 0;
+          if (port == 3000 || port == 3001 || port == 3002 || port == 5173 || port == 5174 || port == 5555 || port == 8080) {
+            return 'http://localhost:8081';
+          }
+        }
+      } catch (_) {}
+    }
+    // Production/staging: Auth is co-located with the API ingress, so use the
+    // same base URL as other REST calls.
+    return apiBaseUrl;
+  }
 
   // -------------------------------------------------------------------------
   // Socials (open via url_launcher)
@@ -88,7 +127,19 @@ class Env {
   static String get uploadsBaseUrl {
     const fromDefine = String.fromEnvironment('UPLOADS_BASE_URL');
     if (fromDefine.isNotEmpty) return fromDefine;
-    return _get('UPLOADS_BASE_URL', 'https://api.mapmytimes.com/uploads');
+
+    final fromEnv = dotenv.maybeGet('UPLOADS_BASE_URL');
+    if (fromEnv != null && fromEnv.isNotEmpty) return fromEnv;
+
+    if (kIsWeb) {
+      try {
+        final host = Uri.base.host;
+        if (host == 'localhost' || host == '127.0.0.1') {
+          return 'http://localhost:8090/uploads';
+        }
+      } catch (_) {}
+    }
+    return 'https://api.mapmytimes.com/uploads';
   }
 
   /// Known origin hosts that return images without CORS headers (direct browser
@@ -97,8 +148,8 @@ class Env {
   /// server-to-server headers AND attaches Access-Control-Allow-Origin: * on
   /// the response.
   static const List<String> _noCorsHosts = [
-    'mapmytour-bucket-prod.s3.ap-south-1.amazonaws.com',
-    'mapmytour-bucket-prod.s3.amazonaws.com',
+    'mapnytimes.s3.ap-south-1.amazonaws.com',
+    'mapnytimes.s3.amazonaws.com',
   ];
 
   /// Resolve a raw image URL coming from the backend (featuredImageUrl /
@@ -110,10 +161,23 @@ class Env {
   ///  * http(s)://host/path   → if host is in _noCorsHosts → go via /s3 proxy
   ///                             otherwise return as-is.
   static String resolveImgUrl(String? raw) {
-    final s = (raw ?? '').trim();
+    var s = (raw ?? '').trim();
     if (s.isEmpty) return '';
     // Already data uri / blob → load verbatim.
     if (s.startsWith('data:') || s.startsWith('blob:')) return s;
+
+    // Extract actual URL from common malformed strings like:
+    //   "{url: https://.../file.jpg}", "{https://...}", or "url: https://..."
+    if ((!s.startsWith('http') && !s.startsWith('/')) &&
+        (s.contains('https://') || s.contains('http://'))) {
+      final reg = RegExp(r'https?://[^}\]"><,)\s]+');
+      final m = reg.firstMatch(s);
+      if (m != null) {
+        final extracted = m.group(0) ?? '';
+        // Remove trailing punctuation / braces if any
+        s = extracted.replaceAll(RegExp(r'[}\]\),]+$'), '');
+      }
+    }
 
     // Absolute path (starts with / but not protocol)
     if (s.startsWith('/') && !s.startsWith('//')) {

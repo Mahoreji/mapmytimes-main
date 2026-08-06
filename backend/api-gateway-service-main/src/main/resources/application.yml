@@ -20,7 +20,7 @@ server:
 
 spring:
   application:
-    name: ${SPRING_APPLICATION_NAME:mapmytour-api-gateway}
+    name: ${SPRING_APPLICATION_NAME:mapmytimes-api-gateway}
   
   # Reactive R2DBC (Non-blocking) for logic
   r2dbc:
@@ -1905,7 +1905,7 @@ logging:
     org.springframework.cloud.gateway: ${LOG_LEVEL_GATEWAY:DEBUG}
     org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: DEBUG
     org.springframework.cloud.gateway.route.RouteDefinitionRouteLocator: DEBUG
-    in.mapmytour.api: ${LOG_LEVEL_MAPMYTOUR:DEBUG}
+    in.mapmytour.api: ${LOG_LEVEL_MAPMYTIMES:DEBUG}
     io.github.resilience4j: ${LOG_LEVEL_RESILIENCE4J:INFO}
     org.springframework.data.redis: INFO
     org.springframework.security: INFO
@@ -2006,7 +2006,7 @@ app:
     cors: true
     monitoring: true
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,https://mapmytimes.com,https://www.mapmytimes.com}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:3001,http://localhost:5173,https://mapmytimes.com,https://www.mapmytimes.com}
   security:
     jwt:
       issuer: ${jwt.issuer}

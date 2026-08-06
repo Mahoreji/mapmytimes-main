@@ -36,11 +36,15 @@ export function parseVideoUrl(raw: string | null | undefined): ParsedVideo | nul
     const ig = s.match(IG_RE);
     if (ig) {
       const id = ig[1];
+      const isReel = s.includes("/reel") || s.includes("/reels");
       return {
-        platform: s.includes("/reel") || s.includes("/reels") ? "instagram-reels" : "instagram",
+        platform: isReel ? "instagram-reels" : "instagram",
         id,
-        url: `https://www.instagram.com/p/${id}/`,
-        embedUrl: `https://www.instagram.com/p/${id}/embed/`,
+        url: isReel
+          ? `https://www.instagram.com/reel/${id}/`
+          : `https://www.instagram.com/p/${id}/`,
+        embedUrl: `https://www.instagram.com/p/${id}/embed/?hidecaption=1&omitscript=1`,
+        durationHint: isReel ? "9:16" : "1:1",
       };
     }
 

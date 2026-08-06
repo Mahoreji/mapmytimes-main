@@ -257,9 +257,9 @@ public class NotificationServiceImpl implements NotificationService {
         Map<String, Object> variables = new HashMap<>();
         variables.put("firstName", user.getFirstName());
         variables.put("email", user.getEmail());
-        variables.put("appName", "Map My Tour");
+        variables.put("appName", "MapMyTimes");
 
-        return sendEmail(user.getEmail(), "Welcome to Map My Tour!", null, "welcome_email", variables);
+        return sendEmail(user.getEmail(), "Welcome to MapMyTimes!", null, "welcome_email", variables);
     }
 
     @Override
@@ -267,14 +267,14 @@ public class NotificationServiceImpl implements NotificationService {
         Map<String, Object> variables = new HashMap<>();
         variables.put("firstName", user.getFirstName());
         variables.put("verificationCode", verificationCode);
-        variables.put("appName", "Map My Tour");
+        variables.put("appName", "MapMyTimes");
 
-        boolean emailSent = sendEmail(user.getEmail(), "Email Verification - Map My Tour", null, "verification_email", variables).join();
+        boolean emailSent = sendEmail(user.getEmail(), "Email Verification - MapMyTimes", null, "verification_email", variables).join();
 
         // Also send SMS if phone number is available
         boolean smsSent = false;
         if (user.getPhone() != null) {
-            String smsMessage = String.format("Your Map My Tour verification code is: %s. Valid for 10 minutes.", verificationCode);
+            String smsMessage = String.format("Your MapMyTimes verification code is: %s. Valid for 10 minutes.", verificationCode);
             smsSent = sendSMS(user.getPhone(), smsMessage).join();
         }
 
@@ -286,9 +286,9 @@ public class NotificationServiceImpl implements NotificationService {
         Map<String, Object> variables = new HashMap<>();
         variables.put("firstName", user.getFirstName());
         variables.put("resetToken", resetToken);
-        variables.put("appName", "Map My Tour");
+        variables.put("appName", "MapMyTimes");
 
-        return sendEmail(user.getEmail(), "Password Reset - Map My Tour", null, "password_reset_email", variables);
+        return sendEmail(user.getEmail(), "Password Reset - MapMyTimes", null, "password_reset_email", variables);
     }
 
     @Override
@@ -298,9 +298,9 @@ public class NotificationServiceImpl implements NotificationService {
         variables.put("ipAddress", ipAddress);
         variables.put("userAgent", userAgent);
         variables.put("loginTime", LocalDateTime.now().toString());
-        variables.put("appName", "Map My Tour");
+        variables.put("appName", "MapMyTimes");
 
-        return sendEmail(user.getEmail(), "New Login Alert - Map My Tour", null, "login_alert_email", variables);
+        return sendEmail(user.getEmail(), "New Login Alert - MapMyTimes", null, "login_alert_email", variables);
     }
 
     @Override
@@ -310,9 +310,9 @@ public class NotificationServiceImpl implements NotificationService {
         variables.put("alertType", alertType);
         variables.put("description", description);
         variables.put("timestamp", LocalDateTime.now().toString());
-        variables.put("appName", "Map My Tour");
+        variables.put("appName", "MapMyTimes");
 
-        return sendEmail(user.getEmail(), "Security Alert - Map My Tour", null, "security_alert_email", variables);
+        return sendEmail(user.getEmail(), "Security Alert - MapMyTimes", null, "security_alert_email", variables);
     }
 
     // ================ SUBSCRIPTION AND MARKETING ================
@@ -328,7 +328,7 @@ public class NotificationServiceImpl implements NotificationService {
         variables.putAll(personalizedData);
         variables.put("campaignId", campaignId);
 
-        return sendEmail(user.getEmail(), "Special Offer from Map My Tour", null, "marketing_email", variables);
+        return sendEmail(user.getEmail(), "Special Offer from MapMyTimes", null, "marketing_email", variables);
     }
 
     @Override
@@ -348,18 +348,18 @@ public class NotificationServiceImpl implements NotificationService {
     public CompletableFuture<Boolean> sendSystemMaintenanceNotification(List<String> userEmails, String maintenanceInfo) {
         Map<String, Object> variables = new HashMap<>();
         variables.put("maintenanceInfo", maintenanceInfo);
-        variables.put("appName", "Map My Tour");
+        variables.put("appName", "MapMyTimes");
 
-        return sendBulkEmail(userEmails, "Scheduled Maintenance - Map My Tour", null, "maintenance_email", variables);
+        return sendBulkEmail(userEmails, "Scheduled Maintenance - MapMyTimes", null, "maintenance_email", variables);
     }
 
     @Override
     public CompletableFuture<Boolean> sendSystemUpdateNotification(List<String> userEmails, String updateInfo) {
         Map<String, Object> variables = new HashMap<>();
         variables.put("updateInfo", updateInfo);
-        variables.put("appName", "Map My Tour");
+        variables.put("appName", "MapMyTimes");
 
-        return sendBulkEmail(userEmails, "System Update - Map My Tour", null, "system_update_email", variables);
+        return sendBulkEmail(userEmails, "System Update - MapMyTimes", null, "system_update_email", variables);
     }
 
     // ================ NOTIFICATION PREFERENCES ================
@@ -554,12 +554,12 @@ public class NotificationServiceImpl implements NotificationService {
 
     private String getSubscriptionEmailSubject(String subscriptionEvent) {
         return switch (subscriptionEvent.toUpperCase()) {
-            case "UPGRADE" -> "Subscription Upgraded - Map My Tour";
-            case "DOWNGRADE" -> "Subscription Changed - Map My Tour";
-            case "RENEWAL" -> "Subscription Renewed - Map My Tour";
-            case "CANCELLATION" -> "Subscription Cancelled - Map My Tour";
-            case "EXPIRY_WARNING" -> "Subscription Expiring Soon - Map My Tour";
-            default -> "Subscription Update - Map My Tour";
+            case "UPGRADE" -> "Subscription Upgraded - MapMyTimes";
+            case "DOWNGRADE" -> "Subscription Changed - MapMyTimes";
+            case "RENEWAL" -> "Subscription Renewed - MapMyTimes";
+            case "CANCELLATION" -> "Subscription Cancelled - MapMyTimes";
+            case "EXPIRY_WARNING" -> "Subscription Expiring Soon - MapMyTimes";
+            default -> "Subscription Update - MapMyTimes";
         };
     }
 
@@ -594,23 +594,23 @@ public class NotificationServiceImpl implements NotificationService {
                         <center class="wrapper">
                             <div class="main">
                                 <div class="header">
-                                    <img src="https://www.mapmytimes.com/logo.svg" alt="Map My Tour" class="logo-img">
+                                    <img src="https://www.mapmytimes.com/logo.svg" alt="MapMyTimes" class="logo-img">
                                 </div>
                                 <div class="content">
                                     <h2 class="title">Welcome to the Journey!</h2>
-                                    <p class="text">Hello <strong>{{firstName}}</strong>,<br>We are absolutely delighted to welcome you to Map My Tour. You've joined a premier community of travelers dedicated to discovering the world's most exceptional experiences.</p>
+                                    <p class="text">Hello <strong>{{firstName}}</strong>,<br>We are absolutely delighted to welcome you to MapMyTimes. You've joined a premier community of travelers dedicated to discovering the world's most exceptional experiences.</p>
                                     <p class="text">Your account is now active. Explore our curated destinations and start planning your next unforgettable adventure today.</p>
                                     <a href="#" class="cta-button">Start Exploring</a>
                                     
                                     <div class="signature">
                                         <p style="margin: 0; font-size: 15px; color: #64748B;">Warm Regards,</p>
-                                        <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #1E293B;">Map My Tour Concierge</p>
+                                        <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #1E293B;">MapMyTimes Concierge</p>
                                     </div>
                                 </div>
                                 <div class="footer">
-                                    <div class="footer-brand">© 2026 Map My Tour. All rights reserved.</div>
+                                    <div class="footer-brand">© 2026 MapMyTimes. All rights reserved.</div>
                                     <p class="disclaimer">
-                                        This email was sent to you as a registered member of Map My Tour. <br>
+                                        This email was sent to you as a registered member of MapMyTimes. <br>
                                         <strong>Confidentiality Note:</strong> This message is intended only for the use of the individual or entity to which it is addressed and may contain information that is privileged and confidential.
                                     </p>
                                 </div>
@@ -650,7 +650,7 @@ public class NotificationServiceImpl implements NotificationService {
                         <center class="wrapper">
                             <div class="main">
                                 <div class="header">
-                                    <img src="https://www.mapmytimes.com/logo.svg" alt="Map My Tour" class="logo-img">
+                                    <img src="https://www.mapmytimes.com/logo.svg" alt="MapMyTimes" class="logo-img">
                                 </div>
                                 <div class="content">
                                     <h2 class="title">Security Verification</h2>
@@ -665,11 +665,11 @@ public class NotificationServiceImpl implements NotificationService {
                                     
                                     <div style="margin-top: 56px; text-align: left; border-top: 1px solid #F1F5F9; padding-top: 24px;">
                                         <p style="margin: 0; font-size: 14px; color: #64748B;">Best Regards,</p>
-                                        <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 700; color: #1E293B;">Map My Tour Security Team</p>
+                                        <p style="margin: 4px 0 0 0; font-size: 15px; font-weight: 700; color: #1E293B;">MapMyTimes Security Team</p>
                                     </div>
                                 </div>
                                 <div class="footer">
-                                    <div class="footer-brand">© 2026 Map My Tour. All rights reserved.</div>
+                                    <div class="footer-brand">© 2026 MapMyTimes. All rights reserved.</div>
                                     <p class="disclaimer">
                                         <strong>Security Note:</strong> This is an automated notification. If you did not request this verification code, please contact our security center immediately.
                                     </p>
@@ -708,22 +708,22 @@ public class NotificationServiceImpl implements NotificationService {
                         <center class="wrapper">
                             <div class="main">
                                 <div class="header">
-                                    <img src="https://www.mapmytimes.com/logo.svg" alt="Map My Tour" class="logo-img">
+                                    <img src="https://www.mapmytimes.com/logo.svg" alt="MapMyTimes" class="logo-img">
                                 </div>
                                 <div class="content">
                                     <h2 class="title">Password Reset Request</h2>
-                                    <p class="text">Hello {{firstName}},<br>We received a formal request to reset the password for your Map My Tour account. To proceed with the reset, please use the following unique security token.</p>
+                                    <p class="text">Hello {{firstName}},<br>We received a formal request to reset the password for your MapMyTimes account. To proceed with the reset, please use the following unique security token.</p>
                                     <p class="text">If you did not initiate this request, please ignore this email; your account remains secure.</p>
                                     
                                     <div class="token-box">{{resetToken}}</div>
                                     
                                     <div class="signature">
                                         <p style="margin: 0; font-size: 15px; color: #64748B;">Best Regards,</p>
-                                        <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #1E293B;">Map My Tour Security Team</p>
+                                        <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 700; color: #1E293B;">MapMyTimes Security Team</p>
                                     </div>
                                 </div>
                                 <div class="footer">
-                                    <div class="footer-brand">© 2026 Map My Tour. All rights reserved.</div>
+                                    <div class="footer-brand">© 2026 MapMyTimes. All rights reserved.</div>
                                     <p class="disclaimer">
                                         This is a system-generated security notification. <br>
                                         <strong>Confidentiality Notice:</strong> This email is intended solely for the person or entity to which it is addressed.

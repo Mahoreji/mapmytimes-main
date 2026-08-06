@@ -43,6 +43,14 @@ public class S3Helper {
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+    public S3Client getS3Client() {
+        return s3Client;
+    }
+
+    public String getBucketName() {
+        return bucketName;
+    }
+
     @PostConstruct
     public void initializeS3Client() {
         try {

@@ -1,5 +1,46 @@
 import type { BlogPostSummaryResponse } from "@/types/blog";
 
+export type ShortVideoPlatform = "youtube-shorts" | "instagram-reels" | "unknown";
+
+const IG_RE_STRICT =
+  /instagram\.com\/(?:p|reel|reels|tv|stories\/[^/]+)\/([A-Za-z0-9_-]+)/;
+
+export function getInstagramMediaId(
+  input: string | null | undefined,
+): string | null {
+  if (!input) return null;
+  const s = String(input).trim();
+  if (!s) return null;
+  if (/^[A-Za-z0-9_-]{8,}$/.test(s) && !s.includes(".")) return s;
+  try {
+    const u = new URL(s);
+    if (u.hostname.includes("instagram.com")) {
+      const m = u.pathname.match(IG_RE_STRICT);
+      if (m) return m[1];
+    }
+  } catch {}
+  const m = s.match(IG_RE_STRICT);
+  return m ? m[1] : null;
+}
+
+export function igEmbedUrl(
+  mediaId: string,
+  opts?: {
+    autoplay?: boolean;
+    mute?: boolean;
+    hideCaption?: boolean;
+    omitscript?: boolean;
+  },
+): string {
+  const o = { autoplay: true, mute: true, hideCaption: true, omitscript: true, ...(opts ?? {}) };
+  const usp = new URLSearchParams();
+  if (o.autoplay) usp.append("autoplay", "1");
+  if (o.mute) usp.append("mute", "1");
+  if (o.hideCaption) usp.append("hidecaption", "1");
+  if (o.omitscript) usp.append("omitscript", "1");
+  return `https://www.instagram.com/p/${encodeURIComponent(mediaId)}/embed/?${usp.toString()}`;
+}
+
 export function getYouTubeVideoId(input: string | null | undefined): string | null {
   if (!input) return null;
   const s = String(input).trim();
@@ -32,34 +73,112 @@ export function getYouTubeVideoId(input: string | null | undefined): string | nu
 }
 
 export interface ShortPostMeta {
+  platform: ShortVideoPlatform;
   videoId: string | null;
   caption: string;
+  embedUrl: string;
+  thumbnailUrl: string;
+  originalUrl: string;
+}
+
+function _cleanCaption(post: any): string {
+  const cleaned = String(post.content ?? "")
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || String(post.title ?? "").trim();
 }
 
 export function extractShortMeta(post: BlogPostSummaryResponse | any): ShortPostMeta {
-  const rawId = (post as any)?.youtubeVideoId ?? (post as any)?.videoId ?? null;
-  if (typeof rawId === "string" && rawId.trim()) {
-    const vid = getYouTubeVideoId(rawId);
-    if (vid) {
-      const rest = String(post.content ?? post.title ?? "").trim();
-      return { videoId: vid, caption: rest };
+  const youtubeVideoIdField: string | null =
+    (post as any)?.youtubeVideoId ?? (post as any)?.videoId ?? null;
+  const instagramMediaIdField: string | null =
+    (post as any)?.instagramMediaId ??
+    (post as any)?.reelId ??
+    (post as any)?.igMediaId ??
+    null;
+
+  const primaryVideo: string = String(
+    (post as any)?.primaryVideoUrl ?? (post as any)?.videoUrl ?? "",
+  );
+  const content: string = String(post.content ?? "");
+
+  if (typeof instagramMediaIdField === "string" && instagramMediaIdField.trim()) {
+    const id = getInstagramMediaId(instagramMediaIdField);
+    if (id) {
+      return {
+        platform: "instagram-reels",
+        videoId: id,
+        caption: _cleanCaption(post),
+        embedUrl: igEmbedUrl(id),
+        thumbnailUrl: String(
+          (post as any)?.featuredImageUrl ??
+            (post as any)?.featuredImage?.url ??
+            (post as any)?.coverImageUrl ??
+            "",
+        ),
+        originalUrl: `https://www.instagram.com/reel/${id}/`,
+      };
     }
   }
-  const fromContent = getYouTubeVideoId(post.content ?? "");
-  if (fromContent) {
-    const cleaned = String(post.content ?? "")
-      .replace(/https?:\/\/\S+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+
+  if (typeof youtubeVideoIdField === "string" && youtubeVideoIdField.trim()) {
+    const vid = getYouTubeVideoId(youtubeVideoIdField);
+    if (vid) {
+      const t = ytThumbnails(vid);
+      return {
+        platform: "youtube-shorts",
+        videoId: vid,
+        caption: _cleanCaption(post),
+        embedUrl: ytEmbedUrl(vid),
+        thumbnailUrl: t.best,
+        originalUrl: `https://www.youtube.com/shorts/${vid}`,
+      };
+    }
+  }
+
+  const igContent = getInstagramMediaId(content) || getInstagramMediaId(primaryVideo);
+  if (igContent) {
     return {
-      videoId: fromContent,
-      caption: cleaned || String(post.title ?? "").trim(),
+      platform: "instagram-reels",
+      videoId: igContent,
+      caption: _cleanCaption(post),
+      embedUrl: igEmbedUrl(igContent),
+      thumbnailUrl: String(
+        (post as any)?.featuredImageUrl ??
+          (post as any)?.featuredImage?.url ??
+          (post as any)?.coverImageUrl ??
+          "",
+      ),
+      originalUrl: `https://www.instagram.com/reel/${igContent}/`,
     };
   }
-  const fromMedia = getYouTubeVideoId(post.primaryVideoUrl ?? "");
+
+  const ytContent = getYouTubeVideoId(content) || getYouTubeVideoId(primaryVideo);
+  if (ytContent) {
+    const t = ytThumbnails(ytContent);
+    return {
+      platform: "youtube-shorts",
+      videoId: ytContent,
+      caption: _cleanCaption(post),
+      embedUrl: ytEmbedUrl(ytContent),
+      thumbnailUrl: t.best,
+      originalUrl: `https://www.youtube.com/shorts/${ytContent}`,
+    };
+  }
+
   return {
-    videoId: fromMedia,
+    platform: "unknown",
+    videoId: null,
     caption: String(post.title ?? "").trim(),
+    embedUrl: "",
+    thumbnailUrl: String(
+      (post as any)?.featuredImageUrl ??
+        (post as any)?.featuredImage?.url ??
+        (post as any)?.coverImageUrl ??
+        "",
+    ),
+    originalUrl: "",
   };
 }
 

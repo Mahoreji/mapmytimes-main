@@ -217,7 +217,7 @@ export default function EditPostPage() {
       excerpt: excerpt.trim() || undefined,
       content: content.trim(),
       contentBlocks: blocks ?? undefined,
-      readingTime: typeof readingTime === "number" ? readingTime : readingTime ? Number(readingTime) : undefined,
+      // P0-2: readingTime REMOVED from client payload. Backend auto-computes from word count.
       language,
       visibility,
       postType,
@@ -424,10 +424,15 @@ export default function EditPostPage() {
                 type="number"
                 min={1}
                 value={readingTime}
-                onChange={(e) =>
-                  setReadingTime(e.target.value ? Number(e.target.value) : "")
+                readOnly
+                disabled
+                hint="Auto-calculated from article word count (≈200 wpm). Recomputed whenever you save the body."
+                className="!opacity-90 [&>input]:!bg-ink-900/5 [&>input]:!cursor-not-allowed"
+                trailingIcon={
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-news text-white text-[9px] font-black uppercase tracking-widest mr-3">
+                    AUTO
+                  </span>
                 }
-                hint="Estimate shown to readers."
               />
             </div>
             <Textarea

@@ -17,6 +17,7 @@ import type {
   ApproveCommentRequest,
   BlogStatsResponse,
   BlogSettingsResponse,
+  ReadingProgressWithPostSummary,
 } from "@/types/blog";
 import type { LanguageCode } from "@/lib/i18n/types";
 
@@ -28,6 +29,7 @@ const LIKES = "/api/v1/blog/likes";
 const MEDIA = "/api/v1/blog/media";
 const SOCIAL = "/api/v1/social";
 const SETTINGS = "/api/v1/blog/settings";
+const READING_PROGRESS = "/api/v1/reading-progress";
 
 function toQuery(params: Record<string, any>) {
   const usp = new URLSearchParams();
@@ -334,6 +336,11 @@ export const blogApi = {
 
     stats: () =>
       http.get<APIResponse<BlogStatsResponse>>(`${SETTINGS}/stats`).then(unwrap),
+  },
+
+  readingProgress: {
+    latest: (limit: number = 20) =>
+      http.get<APIResponse<ReadingProgressWithPostSummary[]>>(`${READING_PROGRESS}/me/latest${toQuery({ limit })}`).then(unwrap),
   },
 };
 

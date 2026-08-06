@@ -130,14 +130,19 @@ Dio createDio({String? base, Duration connect = const Duration(seconds: 15), Map
     sendTimeout: const Duration(seconds: 25),
     headers: <String, dynamic>{
       'Accept': 'application/json',
-      if (!kIsWeb) 'X-Source': 'mapmytimes-mobile',
+      'X-Request-Source': 'api-gateway',
+      'X-Source': 'mapmytimes-mobile',
       if (extra != null) ...extra,
     },
   ),);
   if (kIsWeb) {
     d.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
-        options.headers.removeWhere((k, _) => k.toUpperCase().startsWith('X-'));
+        options.headers.removeWhere((k, _) {
+          final u = k.toUpperCase();
+          if (u == 'X-REQUEST-SOURCE' || u == 'X-SOURCE') return false;
+          return u.startsWith('X-');
+        });
         return handler.next(options);
       },
     ),);

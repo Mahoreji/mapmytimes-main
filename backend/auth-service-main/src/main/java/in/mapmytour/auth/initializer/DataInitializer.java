@@ -33,7 +33,7 @@ public class DataInitializer implements CommandLineRunner {
                                 // Regular USER
                                 User.builder()
                                                 .email("user@mapmytimes.com")
-                                                .firstName("Map My Tour")
+                                                .firstName("MapMyTimes")
                                                 .lastName("User")
                                                 .password(commonPassword)
                                                 .phone("9876543210")
@@ -55,7 +55,7 @@ public class DataInitializer implements CommandLineRunner {
                                 // ADMIN user
                                 User.builder()
                                                 .email("admin@mapmytimes.com")
-                                                .firstName("Map My Tour")
+                                                .firstName("MapMyTimes")
                                                 .lastName("Admin")
                                                 .password(commonPassword)
                                                 .phone("9876543211")
@@ -77,7 +77,7 @@ public class DataInitializer implements CommandLineRunner {
                                 // B2B user
                                 User.builder()
                                                 .email("b2b@mapmytimes.com")
-                                                .firstName("Map My Tour")
+                                                .firstName("MapMyTimes")
                                                 .lastName("Partner")
                                                 .password(commonPassword)
                                                 .phone("9876543212")
@@ -96,17 +96,17 @@ public class DataInitializer implements CommandLineRunner {
                                                 .isActive(true)
                                                 .build(),
 
-                                // Map My Tour Primary Super Admin (mapmytourr@gmail.com)
+                                // MapMyTimes Primary Super Admin (mapmytourr@gmail.com)
                                 User.builder()
                                                 .email("mapmytourr@gmail.com")
-                                                .firstName("Map My Tour")
+                                                .firstName("MapMyTimes")
                                                 .lastName("Super Admin")
                                                 .password(passwordEncoder.encode("SuperAdmin123@"))
                                                 .phone("9876543214")
                                                 .dateOfBirth(LocalDate.of(1980, 1, 1))
                                                 .gender(User.Gender.MALE)
                                                 .address(User.Address.builder()
-                                                                .street("Map My Tour HQ")
+                                                                .street("MapMyTimes HQ")
                                                                 .city("Bangalore")
                                                                 .state("Karnataka")
                                                                 .country("India")

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { blogApi } from "@/lib/api/blogApi";
 import type {
   BlogPostResponse,
@@ -13,6 +13,7 @@ import { PostCard, SectionTitle, Badge } from "@/components/posts/PostCard";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Input";
 import { useAuth } from "@/lib/auth/AuthProvider";
+import { tokenStorage } from "@/lib/auth/token-storage";
 import {
   Eye,
   Heart,
@@ -29,6 +30,14 @@ import {
   Link as LinkIcon,
   List,
   Copy,
+  BookOpen,
+  Type as TypeIcon,
+  X as XIcon,
+  Check as CheckIcon,
+  Circle as CircleIcon,
+  Radio as RadioIcon,
+  Trash2,
+  Highlighter,
 } from "lucide-react";
 import {
   cn,
@@ -44,12 +53,29 @@ import { ArticleSeoMeta } from "./SeoMeta";
 import { VideoEmbed } from "@/components/posts/VideoEmbed";
 import { findPostPrimaryVideo, parseVideoUrl } from "@/lib/video";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import {
+  applyHighlightSpans,
+  createHighlight,
+  deleteHighlight,
+  listHighlights,
+  resolveSelection,
+  type HighlightResponse,
+  type SelectionPoint,
+} from "@/lib/highlights";
 
 export default function ArticlePage() {
   const { lang } = useLanguage();
   const params = useParams<{ slug: string }>();
+  const searchParams = useSearchParams();
   const slug = typeof params?.slug === "string" ? decodeURIComponent(params.slug) : "";
   const auth = useAuth();
+  const resumeQueryPct = useMemo(() => {
+    const raw = searchParams?.get("resume");
+    if (!raw) return null;
+    const n = parseInt(raw, 10);
+    if (Number.isNaN(n) || n < 5 || n > 95) return null;
+    return n;
+  }, [searchParams]);
 
   const [post, setPost] = useState<BlogPostResponse | null>(null);
   const [comments, setComments] = useState<PostCommentResponse[]>([]);
@@ -69,20 +95,446 @@ export default function ArticlePage() {
   const [translateLoading, setTranslateLoading] = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
 
+  // ========================================================================
+  // READER MODE (Phase 1 Website)
+  // ========================================================================
+  type ReaderFontStack = "sans" | "serif";
+  type ReaderTheme = "light" | "dark" | "sepia";
+  type ReaderLineSpacing = "compact" | "normal" | "relaxed";
+
+  const READER_FONT_SIZES = [13, 15, 17, 19, 22];
+  const READER_FONT_DEFAULT_IDX = 2;
+  const READER_LH: Record<ReaderLineSpacing, number> = {
+    compact: 1.45,
+    normal: 1.7,
+    relaxed: 2.05,
+  };
+  const READER_LH_LABEL: Record<ReaderLineSpacing, string> = {
+    compact: "Compact",
+    normal: "Normal",
+    relaxed: "Relaxed",
+  };
+  const READER_STACK_LABEL: Record<ReaderFontStack, string> = {
+    sans: "Sans (Default)",
+    serif: "Serif (Long-form)",
+  };
+  const READER_BG: Record<ReaderTheme, string> = {
+    light: "#ffffff",
+    dark: "#0A0A0A",
+    sepia: "#F4ECD8",
+  };
+  const READER_FG: Record<ReaderTheme, string> = {
+    light: "#0A0A0A",
+    dark: "#ffffff",
+    sepia: "#5B4636",
+  };
+  const LS_KEY = "mmt:reader:prefs";
+  const LS_PROGRESS_PREFIX = "mmt:reader:progress:";
+  const LS_META_PREFIX = "mmt:reader:meta:";
+  const persistProgressMeta = () => {
+    try {
+      if (!post?.id) return;
+      const meta = {
+        slug: post.slug,
+        title: post.title,
+        excerpt: (post as any).excerpt ?? "",
+        cover: (post as any).featuredImageUrl,
+        featuredImageUrl: (post as any).featuredImageUrl,
+        readingTimeMinutes: (post as any).readingTimeMinutes ?? (post as any).readingTime,
+        viewCount: (post as any).viewCount ?? 0,
+        categories: (post as any).categories ?? [],
+      };
+      localStorage.setItem(LS_META_PREFIX + post.id, JSON.stringify(meta));
+      localStorage.setItem(LS_META_PREFIX + post.id + ":ts", String(Date.now()));
+    } catch {}
+  };
+  useEffect(() => {
+    if (post?.id) persistProgressMeta();
+  }, [post?.id, post?.title, post?.slug, (post as any)?.featuredImageUrl, (post as any)?.readingTimeMinutes]);
+
+  const [isReaderMode, setIsReaderMode] = useState(false);
+  const [showAaPanel, setShowAaPanel] = useState(false);
+  const [readerFontIdx, setReaderFontIdx] = useState(READER_FONT_DEFAULT_IDX);
+  const [readerStack, setReaderStack] = useState<ReaderFontStack>("sans");
+  const [readerLH, setReaderLH] = useState<ReaderLineSpacing>("normal");
+  const [readerTheme, setReaderTheme] = useState<ReaderTheme>("light");
+  const [readerAutoDismissed, setReaderAutoDismissed] = useState(false);
+  const [showReaderSuggest, setShowReaderSuggest] = useState(false);
+  const [lastSentProgress, setLastSentProgress] = useState<number>(-1);
+  const [resumeBannerVisible, setResumeBannerVisible] = useState<boolean>(false);
+  const [resumePercent, setResumePercent] = useState<number | null>(null);
+
+  // ========================================================================
+  // HIGHLIGHTS (Build4 V1)
+  // ========================================================================
+  const [highlights, setHighlights] = useState<HighlightResponse[]>([]);
+  const [hlSelection, setHlSelection] = useState<SelectionPoint | null>(null);
+  const [hlBusy, setHlBusy] = useState<boolean>(false);
+  const [hlDeleting, setHlDeleting] = useState<string | null>(null);
+  const readerBodyRef = useRef<HTMLDivElement | null>(null);
+  const floatToolbarRef = useRef<HTMLDivElement | null>(null);
+  const deletePopoverRef = useRef<HTMLDivElement | null>(null);
+  const [deletePopover, setDeletePopover] = useState<{ hl: HighlightResponse; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        const p = JSON.parse(raw) as any;
+        if (typeof p?.fontIdx === "number") setReaderFontIdx(Math.max(0, Math.min(READER_FONT_SIZES.length - 1, p.fontIdx)));
+        if (p?.stack === "sans" || p?.stack === "serif") setReaderStack(p.stack);
+        if (p?.lh === "compact" || p?.lh === "normal" || p?.lh === "relaxed") setReaderLH(p.lh);
+        if (p?.theme === "light" || p?.theme === "dark" || p?.theme === "sepia") setReaderTheme(p.theme);
+      }
+    } catch {}
+    if (auth.isAuthenticated && post?.id) {
+      const token = tokenStorage.access;
+      if (token) {
+        fetch(`${SITE.apiBase.replace(/\/$/, "")}/api/v1/users/me/reader-preferences`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then((r) => {
+          if (!r.ok) return;
+          return r.json();
+        }).then((data) => {
+          const prefs = data?.data ?? data;
+          if (!prefs) return;
+          if (typeof prefs?.fontSizeIdx === "number") setReaderFontIdx(Math.max(0, Math.min(READER_FONT_SIZES.length - 1, prefs.fontSizeIdx)));
+          if (prefs?.fontStack === "sans" || prefs?.fontStack === "serif") setReaderStack(prefs.fontStack);
+          if (prefs?.lineSpacing === "compact" || prefs?.lineSpacing === "normal" || prefs?.lineSpacing === "relaxed") setReaderLH(prefs.lineSpacing);
+          if (prefs?.theme === "light" || prefs?.theme === "dark" || prefs?.theme === "sepia") setReaderTheme(prefs.theme);
+          try {
+            localStorage.setItem(
+              LS_KEY,
+              JSON.stringify({
+                fontIdx: typeof prefs?.fontSizeIdx === "number" ? prefs.fontSizeIdx : readerFontIdx,
+                stack: prefs?.fontStack ?? readerStack,
+                lh: prefs?.lineSpacing ?? readerLH,
+                theme: prefs?.theme ?? readerTheme,
+              }),
+            );
+          } catch {}
+        }).catch(() => {});
+      }
+    }
+    if (post) {
+      const words = computeStrippedWordCount(post.content ?? (post as any).contentHtml ?? "");
+      const dismissedKey = `mmt:reader:suggest:${post.id}`;
+      let dismissed = false;
+      try { dismissed = localStorage.getItem(dismissedKey) === "1"; } catch {}
+      setReaderAutoDismissed(dismissed);
+      setShowReaderSuggest(!dismissed && words >= 800);
+    }
+  }, [post?.id, auth.isAuthenticated]);
+
+  useEffect(() => {
+    if (!post?.id) return;
+    if (typeof window === "undefined") return;
+    setResumeBannerVisible(false);
+    setResumePercent(null);
+    setLastSentProgress(-1);
+    if (resumeQueryPct != null) {
+      return;
+    }
+    const loadProgress = async () => {
+      let percent: number | null = null;
+      if (auth.isAuthenticated) {
+        const token = tokenStorage.access;
+        if (token) {
+          try {
+            const r = await fetch(`${SITE.apiBase.replace(/\/$/, "")}/api/v1/reading-progress/me/post/${post.id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (r.ok) {
+              const data = await r.json();
+              const raw = data?.data?.scrollPercent ?? data?.scrollPercent;
+              if (typeof raw === "number") percent = Math.round(raw);
+            }
+          } catch {}
+        }
+      }
+      if (percent == null) {
+        try {
+          const raw = localStorage.getItem(LS_PROGRESS_PREFIX + post.id);
+          if (raw) {
+            const n = parseInt(raw, 10);
+            if (!isNaN(n)) percent = n;
+          }
+        } catch {}
+      }
+      if (percent != null && percent >= 5 && percent <= 95) {
+        setResumePercent(percent);
+        setResumeBannerVisible(true);
+      }
+    };
+    void loadProgress();
+  }, [post?.id, auth.isAuthenticated, resumeQueryPct]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (resumeQueryPct == null) return;
+    if (state !== "ready" || !post?.id) return;
+    setIsReaderMode(true);
+    setResumeBannerVisible(false);
+    setResumePercent(resumeQueryPct);
+    const raf = requestAnimationFrame(() => {
+      const root = document.documentElement;
+      const max = Math.max(
+        1,
+        root.scrollHeight - root.clientHeight,
+        document.body ? document.body.scrollHeight - window.innerHeight : 0,
+      );
+      const target = Math.max(0, Math.min(max, (max * resumeQueryPct) / 100));
+      window.scrollTo({ top: target, behavior: "auto" });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [state, post?.id, resumeQueryPct]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const prefsObj = { fontIdx: readerFontIdx, stack: readerStack, lh: readerLH, theme: readerTheme };
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(prefsObj));
+    } catch {}
+    if (auth.isAuthenticated) {
+      const token = tokenStorage.access;
+      if (token) {
+        const body = {
+          fontSizeIdx: readerFontIdx,
+          fontStack: readerStack,
+          lineSpacing: readerLH,
+          theme: readerTheme,
+        };
+        fetch(`${SITE.apiBase.replace(/\/$/, "")}/api/v1/users/me/reader-preferences`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        }).catch(() => {});
+      }
+    }
+  }, [readerFontIdx, readerStack, readerLH, readerTheme, auth.isAuthenticated]);
+
+  function dismissReaderSuggest(andEnter: boolean) {
+    if (!post) return;
+    const dismissedKey = `mmt:reader:suggest:${post.id}`;
+    try { localStorage.setItem(dismissedKey, "1"); } catch {}
+    setReaderAutoDismissed(true);
+    setShowReaderSuggest(false);
+    if (andEnter) setIsReaderMode(true);
+  }
+
+  // Word-count utility (P0-3 parity with backend Java + mobile Dart regex)
+  function stripHtmlAndMarkdown(raw: string): string {
+    if (!raw) return "";
+    let s = String(raw);
+    s = s
+      .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, "\"")
+      .replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+    // Pass 1: markdown links + images, preserve link text only
+    s = s.replace(/!?\[([^\]]*)\]\([^)]*\)/g, (_m, text) => ` ${text} `);
+    s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, "");
+    // Pass 2: HTML tags
+    s = s.replace(/<[^>]+>/g, " ");
+    // Pass 3: Markdown headings prefix (#, ##, etc.)
+    s = s.replace(/^\s*#{1,6}\s+/gm, "");
+    // Pass 4: Markdown formatting chars
+    s = s.replace(/(\*{1,3}|_{1,3}|`{1,3}|~~|>\s|\|\s|-\s)/g, " ");
+    // Collapse whitespace
+    s = s.replace(/\s+/g, " ").trim();
+    return s;
+  }
+
+  function computeStrippedWordCount(content: string): number {
+    const stripped = stripHtmlAndMarkdown(content || "");
+    if (!stripped) return 0;
+    return stripped.split(/\s+/).filter(Boolean).length;
+  }
+
+  const readerFontPx = READER_FONT_SIZES[readerFontIdx];
+  const readerLineHeight = READER_LH[readerLH];
+  const readerBg = READER_BG[readerTheme];
+  const readerFg = READER_FG[readerTheme];
+  const readerChrome = "#E31E24";
+  const readerFgMuted = readerTheme === "dark" ? "rgba(255,255,255,0.62)" : readerTheme === "sepia" ? "rgba(91,70,54,0.62)" : "rgba(10,10,10,0.62)";
+  const readerBorder = readerTheme === "dark" ? "rgba(255,255,255,0.18)" : readerTheme === "sepia" ? "rgba(91,70,54,0.22)" : "rgba(10,10,10,0.18)";
+
   const postLang = (typeof (post as any)?.language === "string" ? (post as any).language.toLowerCase() : "en") as "en" | "hi";
   const userLang = lang as "en" | "hi";
   const canTranslate = post && postLang !== userLang;
 
   useEffect(() => {
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const flushProgress = (pct: number) => {
+      setLastSentProgress(pct);
+      if (!post?.id) return;
+      persistProgressMeta();
+      try {
+        localStorage.setItem(LS_PROGRESS_PREFIX + post.id, String(pct));
+      } catch {}
+      if (auth.isAuthenticated) {
+        const token = tokenStorage.access;
+        if (token) {
+          fetch(`${SITE.apiBase.replace(/\/$/, "")}/api/v1/reading-progress/me`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ postId: post.id, scrollPercent: pct }),
+          }).catch(() => {});
+        }
+      }
+    };
     function onScroll() {
       const el = document.documentElement;
       const total = el.scrollHeight - el.clientHeight;
-      setProgress(total <= 0 ? 0 : Math.max(0, Math.min(100, (el.scrollTop / total) * 100)));
+      const pct = total <= 0 ? 0 : Math.round(Math.max(0, Math.min(100, (el.scrollTop / total) * 100)));
+      setProgress(pct);
+      if (!post?.id) return;
+      if (lastSentProgress === -1 || Math.abs(pct - lastSentProgress) >= 5) {
+        if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
+        flushProgress(pct);
+      } else {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => flushProgress(pct), 5000);
+      }
     }
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [state]);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, [state, post?.id, auth.isAuthenticated, lastSentProgress]);
+
+  // ========================================================================
+  // HIGHLIGHTS EFFECTS + HANDLERS
+  // ========================================================================
+  useEffect(() => {
+    if (!post?.id || !isReaderMode) return;
+    let active = true;
+    setHighlights([]);
+    listHighlights(post.id)
+      .then((list) => { if (active) setHighlights(list); })
+      .catch(() => { if (active) setHighlights([]); });
+    return () => { active = false; };
+  }, [post?.id, isReaderMode, auth.isAuthenticated]);
+
+  useEffect(() => {
+    if (!isReaderMode) return;
+    const root = readerBodyRef.current;
+    if (!root) return;
+    const id = window.requestAnimationFrame(() => {
+      applyHighlightSpans(root, highlights, (hl, ev) => {
+        const x = ev.clientX;
+        const y = ev.clientY;
+        setDeletePopover({ hl, x, y });
+      });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [highlights, isReaderMode, translateMode, translatedMap]);
+
+  useEffect(() => {
+    if (!isReaderMode) { setHlSelection(null); return; }
+
+    function updateFromSelection(ev?: Event) {
+      const sel = window.getSelection?.() ?? null;
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        if (ev && ev.type === "mouseup") {
+          // Wait a tick for browser selection to finalize on triple-click etc.
+          setTimeout(() => {
+            const s2 = window.getSelection?.() ?? null;
+            if (!s2 || s2.rangeCount === 0 || s2.isCollapsed) return;
+            const root = readerBodyRef.current;
+            if (!root) return;
+            const sp = resolveSelection(root, s2);
+            if (sp) setHlSelection(sp);
+          }, 10);
+          return;
+        }
+        return;
+      }
+      const root = readerBodyRef.current;
+      if (!root) return;
+      const inReader =
+        root.contains(sel.anchorNode) && root.contains(sel.focusNode);
+      if (!inReader) return;
+      const sp = resolveSelection(root, sel);
+      if (sp) setHlSelection(sp);
+    }
+    function onDocMouseDown(ev: MouseEvent) {
+      const el = ev.target as HTMLElement | null;
+      if (!el) return;
+      if (floatToolbarRef.current && floatToolbarRef.current.contains(el)) return;
+      if (deletePopoverRef.current && deletePopoverRef.current.contains(el)) return;
+      if (el.closest?.("span[data-mmt-highlight]")) return;
+      if (deletePopover) setDeletePopover(null);
+      // Don't immediately clear — the mouseup may establish a selection.
+    }
+    document.addEventListener("selectionchange", updateFromSelection);
+    window.addEventListener("mouseup", updateFromSelection);
+    document.addEventListener("mousedown", onDocMouseDown, true);
+    return () => {
+      document.removeEventListener("selectionchange", updateFromSelection);
+      window.removeEventListener("mouseup", updateFromSelection);
+      document.removeEventListener("mousedown", onDocMouseDown, true);
+    };
+  }, [isReaderMode, deletePopover]);
+
+  async function doCreateHighlight() {
+    if (!post?.id || !hlSelection) return;
+    if (!auth.isAuthenticated) {
+      setHlSelection(null);
+      window.getSelection?.()?.removeAllRanges();
+      alert("Please sign in to highlight text.");
+      return;
+    }
+    setHlBusy(true);
+    try {
+      const created = await createHighlight({
+        postId: post.id,
+        paragraphIndex: hlSelection.paragraphIndex,
+        charStart: hlSelection.charStart,
+        charEnd: hlSelection.charEnd,
+        excerpt: hlSelection.excerpt,
+      });
+      setHighlights((list) => [...list, created]);
+      setHlSelection(null);
+      window.getSelection?.()?.removeAllRanges();
+    } catch (e: any) {
+      console.warn("create highlight failed:", e?.message ?? e);
+    } finally {
+      setHlBusy(false);
+    }
+  }
+
+  async function doDeleteHighlight(hl: HighlightResponse) {
+    setHlDeleting(hl.id);
+    try {
+      await deleteHighlight(hl.id);
+      setHighlights((list) => list.filter((x) => x.id !== hl.id));
+    } catch (e: any) {
+      console.warn("delete highlight failed:", e?.message ?? e);
+    } finally {
+      setHlDeleting(null);
+      setDeletePopover(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!deletePopover) return;
+    function onClick(ev: MouseEvent) {
+      const el = ev.target as HTMLElement | null;
+      if (!el) return;
+      if (deletePopoverRef.current && deletePopoverRef.current.contains(el)) return;
+      setDeletePopover(null);
+    }
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [deletePopover]);
 
   useEffect(() => {
     if (!slug) return;
@@ -319,29 +771,111 @@ export default function ArticlePage() {
   return (
     <>
       <ArticleSeoMeta post={post} />
-      <div className="fixed top-0 left-0 right-0 z-[60] h-1 bg-ink-100 pointer-events-none">
+      {/* Fixed red progress bar (top) */}
+      <div
+        className="fixed top-0 left-0 right-0 z-[60] h-1 pointer-events-none"
+        style={{ background: isReaderMode ? `${readerBorder}` : undefined }}
+      >
         <div
-          className="h-full bg-news transition-[width] duration-100"
-          style={{ width: `${progress}%` }}
+          className="h-full transition-[width] duration-100"
+          style={{
+            width: `${progress}%`,
+            background: isReaderMode ? readerChrome : undefined,
+            backgroundColor: !isReaderMode ? undefined : undefined,
+            ...(!isReaderMode ? { backgroundColor: "var(--color-news, #E31E24)" } : {}),
+          }}
         />
       </div>
 
-      <article className="mx-auto max-w-7xl px-4 py-5 sm:py-7">
-        <nav className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-ink-600 mb-4">
-          <Link href="/" className="hover:text-news"><ChevronLeft className="h-3.5 w-3.5 inline -mt-0.5" /> Home</Link>
+      {/* Google Fonts + Noto Devanagari inline (for Reader Mode typography stacks) */}
+      <style jsx global>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&family=Noto+Sans+Devanagari:wght@400;500;700;800&family=Noto+Serif:wght@400;500;700;800&family=Noto+Serif+Devanagari:wght@400;500;700;800&family=Archivo+Black&display=swap');
+
+        .reader-body * { color: inherit !important; }
+        .reader-body a { color: inherit !important; text-decoration: underline; text-decoration-color: ${readerChrome}; text-underline-offset: 2px; }
+        .reader-body h1, .reader-body h2, .reader-body h3, .reader-body h4 {
+          font-family: 'Archivo Black', 'Noto Sans Devanagari', sans-serif !important;
+          letter-spacing: -0.01em !important;
+          line-height: 1.12 !important;
+          margin-top: 1.6em !important;
+          margin-bottom: 0.6em !important;
+          text-transform: uppercase !important;
+        }
+        .reader-body h1 { font-size: ${readerFontPx + 14}px !important; }
+        .reader-body h2 { font-size: ${readerFontPx + 7}px !important; }
+        .reader-body h3 { font-size: ${readerFontPx + 3}px !important; }
+        .reader-body p, .reader-body li, .reader-body blockquote, .reader-body figcaption {
+          font-family: inherit !important;
+          font-size: ${readerFontPx}px !important;
+          line-height: ${readerLineHeight} !important;
+          margin-bottom: ${readerFontPx * 1.1}px !important;
+          color: inherit !important;
+          max-width: none !important;
+        }
+        .reader-body blockquote {
+          border-left: 3px solid ${readerChrome};
+          padding: 0.2em 1.1em !important;
+          font-style: italic;
+          opacity: 0.92;
+        }
+        .reader-body ul, .reader-body ol {
+          padding-left: 1.4em !important;
+          margin-bottom: ${readerFontPx * 1.1}px !important;
+        }
+        .reader-body img, .reader-body figure {
+          max-width: 100% !important;
+          height: auto !important;
+          margin: ${readerFontPx * 1.5}px auto !important;
+          border-radius: 6px;
+          overflow: hidden;
+          display: block;
+        }
+        .reader-body iframe {
+          max-width: 100% !important;
+          width: 100% !important;
+          border-radius: 6px;
+          border: 0;
+          aspect-ratio: 16 / 9;
+        }
+        .reader-body hr { border-color: ${readerBorder}; border-top-width: 1px; }
+      `}</style>
+
+      <article
+        className={cn(
+          "transition-[background-color,color] duration-200",
+          isReaderMode ? "min-h-screen" : "mx-auto max-w-7xl px-4 py-5 sm:py-7",
+        )}
+        style={isReaderMode ? {
+          backgroundColor: readerBg,
+          color: readerFg,
+          fontFamily: readerStack === "serif"
+            ? "'Noto Serif', 'Noto Serif Devanagari', Georgia, 'Times New Roman', serif"
+            : "'Inter', 'Noto Sans Devanagari', -apple-system, BlinkMacSystemFont, sans-serif",
+        } : undefined}
+      >
+        <div className={cn(!isReaderMode ? "" : "mx-auto")} style={isReaderMode ? { maxWidth: "1120px", padding: "28px 20px 48px" } : undefined}>
+        <nav className={cn("flex items-center gap-2 text-xs font-bold uppercase tracking-widest mb-4",
+          isReaderMode ? "text-ink-600" : "text-ink-600")}
+          style={isReaderMode ? { color: readerFgMuted } : undefined}>
+          <Link href="/" className={cn(isReaderMode ? "hover:text-news" : "hover:text-news")}
+            style={isReaderMode ? { color: readerFgMuted } : undefined}
+          ><ChevronLeft className="h-3.5 w-3.5 inline -mt-0.5" /> Home</Link>
           {post.categories?.[0] ? (
             <>
               <span>/</span>
               <Link
                 href={`/category/${encodeURIComponent(post.categories[0].slug)}`}
                 className="hover:text-news"
+                style={isReaderMode ? { color: readerFgMuted } : undefined}
               >
                 {post.categories[0].name}
               </Link>
             </>
           ) : null}
           <span>/</span>
-          <span className="text-ink-950 truncate max-w-[50vw]">{translateMode === "translated" ? (translatedMap?.["title"] ?? post.title) : post.title}</span>
+          <span className={cn("truncate max-w-[50vw]")} style={isReaderMode ? { color: readerFg } : { color: "#0A0A0A" }}>
+            {translateMode === "translated" ? (translatedMap?.["title"] ?? post.title) : post.title}
+          </span>
         </nav>
 
         {canTranslate ? (
@@ -376,10 +910,19 @@ export default function ArticlePage() {
           </div>
         ) : null}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
-          <div className="lg:col-span-9 space-y-6 sm:space-y-8">
+        <div
+          className={cn(
+            isReaderMode ? "mx-auto" : "grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8",
+          )}
+          style={isReaderMode ? { maxWidth: "100%" } : undefined}
+        >
+          <div
+            className={cn(isReaderMode ? "w-full" : "lg:col-span-9 space-y-6 sm:space-y-8")}
+            style={!isReaderMode ? undefined : {}}
+          >
             <header className="space-y-4 sm:space-y-5">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                <div className="flex flex-wrap items-center gap-2">
                 {post.isFeatured ? <Badge variant="news">Featured</Badge> : null}
                 {post.isTrending ? <Badge variant="ink">Trending</Badge> : null}
                 {post.categories?.map((c) => (
@@ -391,6 +934,41 @@ export default function ArticlePage() {
                     {c.name}
                   </Link>
                 ))}
+                </div>
+                <div className="flex items-center gap-1.5 ml-auto sm:ml-4 mt-2 sm:mt-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAaPanel((v) => !v)}
+                    title="Typography"
+                    aria-label="Typography settings"
+                    className={cn(
+                      "inline-flex h-9 items-center gap-1.5 border-2 px-2.5 text-[11px] font-black uppercase tracking-widest transition-colors",
+                      isReaderMode
+                        ? "border-ink-950/30 hover:border-news"
+                        : "border-ink-950 bg-white hover:bg-ink-50",
+                    )}
+                    style={isReaderMode ? { borderColor: readerBorder, color: readerFg } : undefined}
+                  >
+                    <TypeIcon className="h-3.5 w-3.5" />
+                    Aa
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsReaderMode((v) => !v)}
+                    aria-pressed={isReaderMode}
+                    title={isReaderMode ? "Exit Reader Mode" : "Enter Reader Mode"}
+                    className={cn(
+                      "inline-flex h-9 items-center gap-1.5 border-2 px-2.5 text-[11px] font-black uppercase tracking-widest transition-all",
+                      isReaderMode
+                        ? "bg-news text-white border-news shadow-hard-sm"
+                        : "border-ink-950 bg-white hover:bg-ink-50",
+                    )}
+                    style={!isReaderMode ? {} : undefined}
+                  >
+                    <BookOpen className="h-3.5 w-3.5" />
+                    {isReaderMode ? "Reader" : "Reader"}
+                  </button>
+                </div>
               </div>
               <h1 className="font-headline text-3xl sm:text-4xl md:text-5xl lg:text-6xl uppercase leading-[0.95] tracking-tight">
                 {translateMode === "translated" ? (translatedMap?.["title"] ?? post.title) : post.title}
@@ -487,6 +1065,7 @@ export default function ArticlePage() {
               </div>
             ) : null}
 
+            <div ref={readerBodyRef} style={isReaderMode ? { maxWidth: "680px", margin: "0 auto", width: "100%" } : undefined} className={cn(isReaderMode ? "reader-body" : "")}>
             <ArticleBody
               content={post.content}
               blocks={post.contentBlocks ?? null}
@@ -498,6 +1077,7 @@ export default function ArticlePage() {
               translations={translatedMap}
               translateMode={translateMode}
             />
+            </div>
 
             {post.tags && post.tags.length > 0 ? (
               <div className="flex flex-wrap gap-2 pt-3 border-t-2 border-ink-950">
@@ -572,9 +1152,9 @@ export default function ArticlePage() {
               </div>
             </div>
 
-            <AuthorCard post={post} />
+            {!isReaderMode && <AuthorCard post={post} />}
 
-            {post.media && post.media.filter(m => m && m.url).length > 0 ? (
+            {!isReaderMode && post.media && post.media.filter(m => m && m.url).length > 0 ? (
               <section>
                 <SectionTitle eyebrow="Gallery" title="Photos & Media" />
                 <div className="mt-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -604,6 +1184,7 @@ export default function ArticlePage() {
               </section>
             ) : null}
 
+            {!isReaderMode && (
             <section id="comments">
               <SectionTitle
                 eyebrow="Conversation"
@@ -708,8 +1289,10 @@ export default function ArticlePage() {
                 )}
               </ul>
             </section>
+            )}
           </div>
 
+          {!isReaderMode && (
           <aside className="lg:col-span-3 space-y-8 sm:space-y-10 lg:space-y-14">
             {headings.length > 0 ? (
               <div className="hidden lg:block sticky top-20 z-30 isolate max-h-[calc(100vh-6rem)] overflow-y-auto border-2 border-ink-950 bg-white p-4 shadow-hard-sm">
@@ -794,8 +1377,459 @@ export default function ArticlePage() {
               </form>
             </div>
           </aside>
+          )}
+        </div>
+        {isReaderMode && (
+          <div style={{ maxWidth: 680, margin: "40px auto 0", textAlign: "center" }}>
+            <div className="inline-flex items-center gap-2 mb-3">
+              <div style={{ width: 3, height: 12, background: readerChrome }} />
+              <span
+                style={{
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: 900,
+                  fontSize: 11,
+                  letterSpacing: "0.16em",
+                  color: readerFgMuted,
+                  textTransform: "uppercase",
+                }}
+              >
+                End of story
+              </span>
+            </div>
+            <p style={{ fontFamily: "'Inter', sans-serif", fontSize: 10.5, fontWeight: 600, color: readerFgMuted }}>
+              © {new Date().getFullYear()} MAPMYTOUR LLP, India
+            </p>
+          </div>
+        )}
         </div>
       </article>
+
+      {/* ===================================================================== */}
+      {/* TYPOGRAPHY SIDE PANEL (Aa icon) — sticks right, visible when showAaPanel */}
+      {/* ===================================================================== */}
+      {showAaPanel ? (
+        <>
+          {/* backdrop */}
+          <div
+            aria-hidden="true"
+            onClick={() => setShowAaPanel(false)}
+            className="fixed inset-0 z-[65] bg-black/40 backdrop-blur-[2px]"
+          />
+          {/* panel */}
+          <aside
+            className="fixed right-0 top-0 z-[70] h-full w-[360px] max-w-[90vw] shadow-2xl overflow-y-auto"
+            style={{
+              backgroundColor: readerTheme === "dark" ? "#0A0A0A" : "#ffffff",
+              color: readerTheme === "dark" ? "#ffffff" : "#0A0A0A",
+              borderLeft: "2px solid #0A0A0A",
+              fontFamily: "'Inter', 'Noto Sans Devanagari', sans-serif",
+            }}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4"
+              style={{
+                backgroundColor: readerTheme === "dark" ? "#0A0A0A" : "#fff",
+                borderBottom: `1px solid ${readerTheme === "dark" ? "rgba(255,255,255,0.12)" : "rgba(10,10,10,0.12)"}`,
+              }}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="inline-flex h-9 w-9 items-center justify-center border-2"
+                  style={{ borderColor: "#0A0A0A", background: readerChrome }}
+                >
+                  <TypeIcon className="h-4 w-4" style={{ color: "#fff" }} />
+                </div>
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Reader Mode</div>
+                  <div className="text-sm font-black uppercase tracking-[0.12em]">Typography</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAaPanel(false)}
+                aria-label="Close"
+                className="inline-flex h-9 w-9 items-center justify-center border-2 transition-colors hover:bg-ink-950/5"
+                style={{ borderColor: "#0A0A0A" }}
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="px-5 py-6 space-y-7">
+              {/* --- Font size 5-step --- */}
+              <section>
+                <div className="text-[10.5px] font-black uppercase tracking-[0.22em] mb-3" style={{ opacity: 0.58 }}>Font size</div>
+                <div className="grid grid-cols-5 gap-1.5">
+                  {READER_FONT_SIZES.map((px, i) => {
+                    const active = readerFontIdx === i;
+                    return (
+                      <button
+                        key={px}
+                        type="button"
+                        onClick={() => setReaderFontIdx(i)}
+                        className="h-11 border-2 flex items-center justify-center transition-colors"
+                        style={{
+                          borderColor: active ? readerChrome : readerTheme === "dark" ? "rgba(255,255,255,0.28)" : "rgba(10,10,10,0.6)",
+                          background: active ? readerChrome : "transparent",
+                          color: active ? "#fff" : "inherit",
+                        }}
+                      >
+                        <span style={{ fontSize: 10 + i * 1.2, fontWeight: 900 }}>Aa</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex items-center justify-between text-[10.5px] font-bold uppercase tracking-widest opacity-60">
+                  <span>Small</span>
+                  <span>{readerFontPx}px</span>
+                  <span>X-Large</span>
+                </div>
+              </section>
+
+              {/* --- Font family stack --- */}
+              <section>
+                <div className="text-[10.5px] font-black uppercase tracking-[0.22em] mb-3" style={{ opacity: 0.58 }}>Font family</div>
+                <div className="space-y-2">
+                  {(["sans", "serif"] as ReaderFontStack[]).map((s) => {
+                    const active = readerStack === s;
+                    const sampleStack = s === "serif"
+                      ? "'Noto Serif', 'Noto Serif Devanagari', Georgia, serif"
+                      : "'Inter', 'Noto Sans Devanagari', -apple-system, sans-serif";
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setReaderStack(s)}
+                        className="w-full text-left px-3.5 py-3.5 border-2 transition-colors"
+                        style={{
+                          borderColor: active ? readerChrome : readerTheme === "dark" ? "rgba(255,255,255,0.22)" : "rgba(10,10,10,0.55)",
+                          background: active
+                            ? (readerTheme === "dark" ? "rgba(227,30,36,0.08)" : "rgba(227,30,36,0.06)")
+                            : "transparent",
+                        }}
+                      >
+                        <div className="flex items-center gap-2.5 mb-1.5">
+                          {active ? (
+                            <CheckIcon className="h-4 w-4" style={{ color: readerChrome, flexShrink: 0 }} />
+                          ) : (
+                            <CircleIcon className="h-4 w-4" style={{ opacity: 0.35, flexShrink: 0 }} />
+                          )}
+                          <div className="text-[12px] font-black uppercase tracking-[0.14em]">
+                            {READER_STACK_LABEL[s]}
+                          </div>
+                        </div>
+                        <div className="pl-[26px] text-[15px]" style={{ fontFamily: sampleStack, lineHeight: 1.45 }}>
+                          The quick brown fox jumps over the lazy dog.<br/>
+                          तेज़ लोमड़ी आलसी कूकर के ऊपर से कूदी।
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* --- Line spacing --- */}
+              <section>
+                <div className="text-[10.5px] font-black uppercase tracking-[0.22em] mb-3" style={{ opacity: 0.58 }}>Line spacing</div>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["compact", "normal", "relaxed"] as ReaderLineSpacing[]).map((l) => {
+                    const active = readerLH === l;
+                    return (
+                      <button
+                        key={l}
+                        type="button"
+                        onClick={() => setReaderLH(l)}
+                        className="h-11 border-2 text-[11px] font-black uppercase tracking-[0.15em] transition-colors"
+                        style={{
+                          borderColor: active ? readerChrome : readerTheme === "dark" ? "rgba(255,255,255,0.28)" : "rgba(10,10,10,0.6)",
+                          background: active ? readerChrome : "transparent",
+                          color: active ? "#fff" : "inherit",
+                        }}
+                      >
+                        {READER_LH_LABEL[l]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* --- Theme Light/Dark/Sepia --- */}
+              <section>
+                <div className="text-[10.5px] font-black uppercase tracking-[0.22em] mb-3" style={{ opacity: 0.58 }}>Theme</div>
+                <div className="grid grid-cols-3 gap-3">
+                  {(["light", "dark", "sepia"] as ReaderTheme[]).map((t) => {
+                    const active = readerTheme === t;
+                    const bg = READER_BG[t];
+                    const fg = READER_FG[t];
+                    const label = t === "dark" ? "Dark" : t === "sepia" ? "Sepia" : "Light";
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setReaderTheme(t)}
+                        className="h-[112px] text-left p-3 border-2 transition-all relative overflow-hidden"
+                        style={{
+                          background: bg,
+                          color: fg,
+                          borderColor: active ? readerChrome : "#0A0A0A",
+                          boxShadow: active ? `0 8px 24px -8px ${readerChrome}66` : undefined,
+                        }}
+                      >
+                        <div className="flex items-start justify-between">
+                          {active ? (
+                            <CheckIcon className="h-4 w-4" style={{ color: readerChrome, flexShrink: 0 }} />
+                          ) : (
+                            <RadioIcon className="h-4 w-4" style={{ opacity: 0.35, flexShrink: 0 }} />
+                          )}
+                          <div className="h-1.5 w-6" style={{ background: readerChrome }} />
+                        </div>
+                        <div className="mt-6 space-y-2">
+                          <div className="text-[12px] font-black uppercase tracking-[0.15em]">{label}</div>
+                          <div style={{ height: 3, background: fg, opacity: 0.7, width: "100%" }} />
+                          <div style={{ height: 3, background: fg, opacity: 0.45, width: "72%" }} />
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Reader Mode quick toggle at bottom */}
+              <button
+                type="button"
+                onClick={() => { setIsReaderMode(true); setShowAaPanel(false); }}
+                className="w-full h-12 text-white font-black uppercase tracking-[0.18em] text-xs transition-colors flex items-center justify-center gap-2 border-2"
+                style={{
+                  background: readerChrome,
+                  borderColor: "#0A0A0A",
+                  boxShadow: "4px 4px 0 0 #0A0A0A",
+                }}
+              >
+                <BookOpen className="h-4 w-4" />
+                {isReaderMode ? "Reader Mode — Active" : "Enter Reader Mode"}
+              </button>
+            </div>
+          </aside>
+        </>
+      ) : null}
+
+      {/* ===================================================================== */}
+      {/* AUTO-SUGGEST READER MODE CARD (bottom of viewport for long articles >= 800w) */}
+      {/* ===================================================================== */}
+      {showReaderSuggest && !isReaderMode ? (
+        <div className="fixed bottom-6 left-4 right-4 sm:left-1/2 sm:-translate-x-1/2 sm:max-w-lg z-[75]">
+          <div
+            className="border-2 border-ink-950 bg-white px-4 py-3.5 shadow-hard-sm flex items-center gap-3"
+            style={{ boxShadow: "4px 4px 0 0 #0A0A0A" }}
+          >
+            <div className="flex-shrink-0 inline-flex h-10 w-10 items-center justify-center border-2 border-ink-950" style={{ background: "#E31E24" }}>
+              <BookOpen className="h-4 w-4 text-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-ink-950 leading-none">
+                Read distraction-free
+              </div>
+              <div className="text-[11.5px] text-ink-700 mt-1 leading-snug">
+                Switch to Reader Mode for clean typography & custom fonts.
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={() => dismissReaderSuggest(true)}
+                className="h-9 px-3 text-[11px] font-black uppercase tracking-[0.18em] text-white border-2 border-ink-950"
+                style={{ background: "#E31E24" }}
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                onClick={() => dismissReaderSuggest(false)}
+                aria-label="Dismiss Reader Mode suggestion"
+                className="h-9 w-9 flex items-center justify-center border-2 border-ink-950 bg-white text-ink-950 hover:bg-ink-950 hover:text-white transition-colors"
+              >
+                <XIcon className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {resumeBannerVisible && resumePercent != null ? (
+        <div className="fixed top-20 right-4 sm:top-24 sm:right-8 z-[60] sm:max-w-lg">
+          <div className="rounded border-2 border-ink-950 bg-white text-ink-950 shadow-hard-sm p-4 sm:p-5">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 inline-flex h-9 w-9 items-center justify-center border-2 border-ink-950" style={{ background: "#E31E24" }}>
+                <BookOpen className="h-4 w-4 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-news leading-none mb-1">
+                  Continue reading
+                </div>
+                <div className="text-sm text-ink-800 leading-snug mb-3">
+                  Continue from <strong className="text-ink-950">{resumePercent}%</strong>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResumeBannerVisible(false);
+                      const el = document.documentElement;
+                      const target = (el.scrollHeight * (resumePercent ?? 0)) / 100;
+                      window.scrollTo({ top: target, behavior: "instant" });
+                    }}
+                    className="h-9 px-3 text-[11px] font-black uppercase tracking-[0.18em] text-white border-2 border-ink-950"
+                    style={{ background: "#E31E24" }}
+                  >
+                    Resume
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResumeBannerVisible(false)}
+                    className="h-9 px-3 text-[11px] font-black uppercase tracking-[0.18em] text-ink-950 border-2 border-ink-950 bg-white hover:bg-ink-950 hover:text-white transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setResumeBannerVisible(false)}
+                aria-label="Dismiss resume banner"
+                className="flex-shrink-0 h-8 w-8 flex items-center justify-center border border-ink-950/30 text-ink-700 hover:bg-ink-950 hover:text-white transition-colors"
+              >
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ===================================================================== */}
+      {/* FLOATING HIGHLIGHT TOOLBAR (appears above selection in reader mode) */}
+      {/* ===================================================================== */}
+      {isReaderMode && hlSelection
+        ? (() => {
+            const rect = hlSelection.rect;
+            const scrollY = typeof window !== "undefined" ? window.scrollY : 0;
+            const scrollX = typeof window !== "undefined" ? window.scrollX : 0;
+            const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+            let top = rect.top + scrollY - 52;
+            const left = Math.max(
+              8 + scrollX,
+              Math.min(
+                (vw - 250) + scrollX,
+                rect.left + scrollX + (rect.width / 2) - 125,
+              ),
+            );
+            return (
+              <div
+                ref={floatToolbarRef}
+                className="fixed z-[90] pointer-events-auto"
+                style={{ top: `${Math.max(8, top - scrollY)}px`, left: `${left - scrollX}px` }}
+              >
+                <div
+                  className="flex items-center gap-1 rounded-sm border-2 border-ink-950 px-2 py-1.5 shadow-hard-sm bg-white"
+                  style={{ boxShadow: "3px 3px 0 0 #0A0A0A" }}
+                >
+                  <button
+                    type="button"
+                    onClick={doCreateHighlight}
+                    disabled={hlBusy}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 text-[11px] font-black uppercase tracking-[0.18em] text-white border-2 border-ink-950 disabled:opacity-60 hover:opacity-90 transition-opacity"
+                    style={{ background: "#E31E24" }}
+                  >
+                    {hlBusy
+                      ? <CircleIcon className="h-3.5 w-3.5 animate-spin" />
+                      : <Highlighter className="h-3.5 w-3.5" />}
+                    Highlight
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHlSelection(null);
+                      window.getSelection?.()?.removeAllRanges();
+                    }}
+                    aria-label="Cancel highlight"
+                    className="h-8 w-8 inline-flex items-center justify-center border-2 border-ink-950 bg-white text-ink-950 hover:bg-ink-950 hover:text-white transition-colors"
+                  >
+                    <XIcon className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })()
+        : null}
+
+      {/* ===================================================================== */}
+      {/* HIGHLIGHT DELETE POPOVER (on click of existing highlight) */}
+      {/* ===================================================================== */}
+      {deletePopover
+        ? (() => {
+            const popW = 260;
+            const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+            const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+            const left = Math.max(12, Math.min(vw - popW - 12, deletePopover.x + 12));
+            const top = Math.max(60, Math.min(vh - 120, deletePopover.y + 14));
+            const excerpt =
+              (deletePopover.hl.excerpt ?? "").length > 120
+                ? (deletePopover.hl.excerpt ?? "").slice(0, 120) + "…"
+                : (deletePopover.hl.excerpt ?? "");
+            return (
+              <div
+                ref={deletePopoverRef}
+                className="fixed z-[95]"
+                style={{ left: `${left}px`, top: `${top}px` }}
+              >
+                <div
+                  className="w-[260px] border-2 border-ink-950 bg-white shadow-hard-sm p-3"
+                  style={{ boxShadow: "3px 3px 0 0 #0A0A0A" }}
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-news">
+                      <Highlighter className="h-3.5 w-3.5" /> Highlight
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDeletePopover(null)}
+                      aria-label="Close"
+                      className="h-6 w-6 inline-flex items-center justify-center border border-ink-950/30 text-ink-700 hover:bg-ink-950 hover:text-white transition-colors"
+                    >
+                      <XIcon className="h-3 w-3" />
+                    </button>
+                  </div>
+                  {excerpt ? (
+                    <p
+                      className="text-xs text-ink-800 leading-snug mb-3 p-2 rounded-sm"
+                      style={{ background: "rgba(227, 30, 36, 0.10)" }}
+                    >
+                      {excerpt}
+                    </p>
+                  ) : null}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => doDeleteHighlight(deletePopover.hl)}
+                      disabled={hlDeleting === deletePopover.hl.id}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 px-2 text-[11px] font-black uppercase tracking-[0.18em] text-white border-2 border-ink-950 disabled:opacity-60"
+                      style={{ background: "#0A0A0A" }}
+                    >
+                      {hlDeleting === deletePopover.hl.id
+                        ? <CircleIcon className="h-3.5 w-3.5 animate-spin" />
+                        : <Trash2 className="h-3.5 w-3.5" />}
+                      Remove
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeletePopover(null)}
+                      className="h-8 px-2 text-[11px] font-black uppercase tracking-[0.18em] text-ink-950 border-2 border-ink-950 bg-white hover:bg-ink-950 hover:text-white transition-colors"
+                    >
+                      Keep
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })()
+        : null}
     </>
   );
 }

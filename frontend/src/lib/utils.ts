@@ -15,7 +15,7 @@ export const SITE = {
   url: siteEnv("NEXT_PUBLIC_SITE_URL", "https://mapmytimes.com"),
   tagline: "JOURNALISM OF INTEGRITY",
   email: siteEnv("NEXT_PUBLIC_CONTACT_EMAIL", "admin@mapmytimes.com"),
-  phone: siteEnv("NEXT_PUBLIC_CONTACT_PHONE", "+91 9893989395"),
+  phone: siteEnv("NEXT_PUBLIC_CONTACT_PHONE", "+91 80859 27274"),
   apiBase: siteEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.mapmytimes.com"),
   socials: {
     facebook: siteEnv("NEXT_PUBLIC_SOCIAL_FACEBOOK", "https://facebook.com/mapmytimes"),

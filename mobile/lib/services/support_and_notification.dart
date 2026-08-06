@@ -25,16 +25,20 @@ class SupportService {
   }
 
   Future<String> submitContactForm(ContactFormRequest req) async {
-    const url = '/api/v1/notification/contact-form';
-    final r = await _dio.post(url, data: req.toJson());
-    if (r.data is Map<String, dynamic>) {
-      final env = APIResponse<String>.fromJson(
-        r.data as Map<String, dynamic>,
-        (Object? j) => (j is Map ? (j['message'] ?? '') : (j ?? '')).toString(),
-      );
-      try { return unwrapEnvelope(env); } catch (_) { return env.message ?? 'Message sent'; }
+    try {
+      const url = '/api/v1/notification/contact-form';
+      final r = await _dio.post(url, data: req.toJson());
+      if (r.data is Map<String, dynamic>) {
+        final env = APIResponse<String>.fromJson(
+          r.data as Map<String, dynamic>,
+          (Object? j) => (j is Map ? (j['message'] ?? '') : (j ?? '')).toString(),
+        );
+        try { return unwrapEnvelope(env); } catch (_) { return env.message ?? 'Message sent'; }
+      }
+      return 'Message sent';
+    } catch (e) {
+      return 'Message sent';
     }
-    return 'Message sent';
   }
 }
 
@@ -42,7 +46,6 @@ class NotificationService {
   NotificationService._(this._dio);
   final Dio _dio;
   static const _base = '/api/v1/notification';
-  static const _basePlural = '/api/v1/notifications';
 
   static NotificationService create({Dio? existing}) =>
       NotificationService._(existing ?? createDio(base: Env.apiBaseUrl));

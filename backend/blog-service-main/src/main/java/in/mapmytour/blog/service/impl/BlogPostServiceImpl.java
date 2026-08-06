@@ -122,13 +122,14 @@ public class BlogPostServiceImpl implements BlogPostService {
             // Ensure unique slug
             slug = SlugUtil.ensureUniqueSlug(slug, blogPostRepository::existsBySlug);
 
-            // Create blog post entity
+            // Create blog post entity — readingTime auto-computed (P0-1), ignore any client-sent value
+            final Integer autoReadingTime = computeReadingTime(request.getContent());
             BlogPost blogPost = BlogPost.builder()
                     .title(request.getTitle())
                     .content(request.getContent())
                     .slug(slug)
                     .excerpt(request.getExcerpt())
-                    .readingTime(request.getReadingTime())
+                    .readingTime(autoReadingTime)
                     .featuredImage(request.getFeaturedImage())
                     .primaryVideoUrl(request.getPrimaryVideoUrl())
                     .contentBlocks(request.getContentBlocks())
@@ -669,8 +670,12 @@ public class BlogPostServiceImpl implements BlogPostService {
             if (StringUtils.hasText(request.getExcerpt())) {
                 blogPost.setExcerpt(request.getExcerpt());
             }
-            if (request.getReadingTime() != null) {
-                blogPost.setReadingTime(request.getReadingTime());
+            // P0-1: readingTime auto-recomputed whenever content changes (editor manual input IGNORED)
+            if (StringUtils.hasText(request.getContent())) {
+                final Integer recomputed = computeReadingTime(request.getContent());
+                if (recomputed != null) {
+                    blogPost.setReadingTime(recomputed);
+                }
             }
             if (request.getFeaturedImage() != null) {
                 blogPost.setFeaturedImage(request.getFeaturedImage());
@@ -1763,5 +1768,58 @@ public class BlogPostServiceImpl implements BlogPostService {
             log.warn("Failed to fetch related posts for {}: {}", post.getId(), e.getMessage());
             return Collections.emptyList();
         }
+    }
+
+    // =========================================================================
+    // P0-1 / P0-3: Reading-time auto-computation + dual HTML + Markdown strip
+    // Used for BOTH backend readingTime field calc AND mobile auto-suggest
+    // (mobile replicates same regex logic in ReaderModeHelpers for parity)
+    // =========================================================================
+
+    private static final java.util.regex.Pattern HTML_TAG_RE =
+            java.util.regex.Pattern.compile("<[^>]+>", java.util.regex.Pattern.MULTILINE);
+    private static final java.util.regex.Pattern MD_LINK_RE =
+            java.util.regex.Pattern.compile("!?\\[[^\\]]*\\]\\([^)]*\\)");
+    private static final java.util.regex.Pattern MD_HEADING_RE =
+            java.util.regex.Pattern.compile("^#{1,6}\\s+", java.util.regex.Pattern.MULTILINE);
+    private static final java.util.regex.Pattern MD_FORMAT_RE =
+            java.util.regex.Pattern.compile("(\\*{1,3}|_{1,3}|`{1,3}|~~|> |\\| |- )");
+    private static final java.util.regex.Pattern WHITESPACE_RE =
+            java.util.regex.Pattern.compile("\\s+");
+
+    static String stripHtmlAndMarkdown(String raw) {
+        if (raw == null) return "";
+        String s = raw;
+        // Decode common HTML entities first so word boundaries aren't broken
+        s = s.replace("&nbsp;", " ")
+                .replace("&amp;", "&")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">");
+        // Pass 1: HTML tags (incl. attributes, self-closing, comments)
+        s = HTML_TAG_RE.matcher(s).replaceAll(" ");
+        // Pass 2: Markdown links + images [text](url) / ![alt](url)
+        s = MD_LINK_RE.matcher(s).replaceAll(m -> m.group(0).startsWith("!") ? "" : " " + m.group(0).replaceAll("^!*\\[([^\\]]*)\\]\\(.*\\)$", "$1") + " ");
+        // Pass 3: Markdown headings (#, ##, ###, etc.)
+        s = MD_HEADING_RE.matcher(s).replaceAll("");
+        // Pass 4: Markdown formatting chars (*, _, `, ~~, blockquote >, tables, list bullets)
+        s = MD_FORMAT_RE.matcher(s).replaceAll(" ");
+        // Collapse whitespace
+        s = WHITESPACE_RE.matcher(s).replaceAll(" ").trim();
+        return s;
+    }
+
+    private static final int WORDS_PER_MINUTE = 200;
+
+    /**
+     * Auto-compute readingTime minutes using stripped word count @ 200 wpm.
+     * Returns null for empty content (caller can decide fallback).
+     */
+    static Integer computeReadingTime(String content) {
+        final String stripped = stripHtmlAndMarkdown(content);
+        if (stripped.isEmpty()) return null;
+        final int words = stripped.split("\\s+").length;
+        return Math.max(1, (int) Math.ceil((double) words / WORDS_PER_MINUTE));
     }
 }

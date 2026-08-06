@@ -115,6 +115,11 @@ export interface BlogPostSummaryResponse {
   updatedAt?: string;
   publishedAt?: string;
   scheduledAt?: string;
+  readingTimeMinutes?: number;
+}
+
+export interface ReadingProgressWithPostSummary extends BlogPostSummaryResponse {
+  scrollPercent: number;
 }
 
 export interface BlogPostResponse extends BlogPostSummaryResponse {

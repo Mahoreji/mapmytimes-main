@@ -44,11 +44,18 @@ class _AppShellState extends State<AppShell> with TickerProviderStateMixin {
     if (loc.startsWith('/videos')) return 2;
     if (loc.startsWith('/categories')) return 3;
     if (loc.startsWith('/profile')) return 4;
-    return 0;
+    if (loc.startsWith('/search')) return 5;
+    if (loc.startsWith('/shorts')) return 6;
+    if (loc == '/' || loc.isEmpty) return 0;
+    return 99;
   }
 
   Future<void> _openSearch() async {
-    context.push('/search');
+    try { FocusScope.of(context).unfocus(); } catch (_) {}
+    if (!mounted) return;
+    try { GoRouter.of(context).go('/search'); } catch (e) {
+      try { context.go('/search'); } catch (_) {}
+    }
   }
 
   Future<void> _launchSocial(String url) async {
@@ -163,25 +170,30 @@ class _AppShellState extends State<AppShell> with TickerProviderStateMixin {
                           ] else
                             const Spacer(),
                           // -------- RIGHT BLOCK: Search (no Expanded) --------
-                          InkWell(
-                            onTap: _openSearch,
-                            borderRadius: BorderRadius.circular(999),
-                            child: Container(
-                              height: 40,
-                              width: 40,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(color: dark ? Colors.white24 : MmtColors.ink200, width: 1),
-                                color: dark ? MmtColors.ink850.withValues(alpha: 0.60) : Colors.white.withValues(alpha: 0.80),
-                              ),
-                              alignment: Alignment.center,
-                              child: FaIcon(
-                                FontAwesomeIcons.magnifyingGlass,
-                                size: 18,
-                                color: dark ? Colors.white : MmtColors.ink950,
+                          const SizedBox(width: 10),
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _openSearch,
+                              borderRadius: BorderRadius.circular(999),
+                              child: Container(
+                                height: 44,
+                                width: 44,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: dark ? Colors.white24 : MmtColors.ink200, width: 1),
+                                  color: dark ? MmtColors.ink850.withValues(alpha: 0.60) : Colors.white.withValues(alpha: 0.80),
+                                ),
+                                alignment: Alignment.center,
+                                child: FaIcon(
+                                  FontAwesomeIcons.magnifyingGlass,
+                                  size: 19,
+                                  color: dark ? Colors.white : MmtColors.ink950,
+                                ),
                               ),
                             ),
                           ),
+                          const SizedBox(width: 8),
                         ],
                       ),
                     ),

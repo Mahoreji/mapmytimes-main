@@ -152,7 +152,7 @@ func (s *Service) sendContactFormNotification(cf *db.ContactForm) {
 
 // sendContactFormAutoReply sends auto-reply to customer
 func (s *Service) sendContactFormAutoReply(contactForm *db.ContactForm) {
-	subject := fmt.Sprintf("Map My Tour – Inquiry Received - %s", contactForm.Subject)
+	subject := fmt.Sprintf("MapMyTimes – Inquiry Received - %s", contactForm.Subject)
 	submittedAt := time.Unix(contactForm.CreatedAt, 0).Format("January 2, 2006 at 3:04 PM")
 	
 	data := email.TemplateData{

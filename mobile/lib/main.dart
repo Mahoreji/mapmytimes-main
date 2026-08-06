@@ -16,6 +16,7 @@ import 'package:mapmytimes/screens/news_article_screen.dart';
 import 'package:mapmytimes/screens/shorts_feed.dart';
 import 'package:mapmytimes/screens/static_screens.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'services/offline_storage_service.dart';
 
 // Flutter Web Path-URL strategy (instead of Hash #/) for clean URLs + deep links.
 // ignore: depend_on_referenced_packages
@@ -155,6 +156,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           child: NewsArticleScreen(
             slug: state.pathParameters['slug']!,
             postId: state.uri.queryParameters['id'],
+            resumePercent: () {
+              final rp = state.uri.queryParameters['resumePercent'];
+              if (rp == null) return null;
+              final n = int.tryParse(rp);
+              return n;
+            }(),
           ),
         ),
       ),
@@ -353,6 +360,8 @@ Future<void> main() async {
 
     await Env.load();
 
+    unawaited(OfflineStorageService.instance.init());
+
     // -------------------------------------------------------------------------
     // Preload synchronous dependencies so Riverpod overrides can use real values
     //  1) SharedPreferences (used by language restore + token store)
@@ -420,7 +429,7 @@ class _MapMyTimesAppState extends ConsumerState<MapMyTimesApp> {
 
     return MaterialApp.router(
       title: Env.appName,
-      debugShowCheckedModeBanner: Env.isDebug,
+      debugShowCheckedModeBanner: false,
       routerConfig: router,
       theme: MmtTheme.build(Brightness.light),
       darkTheme: MmtTheme.build(Brightness.dark),

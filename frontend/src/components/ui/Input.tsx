@@ -7,8 +7,9 @@ export const Input = React.forwardRef<
     label?: string;
     error?: string;
     hint?: string;
+    trailingIcon?: React.ReactNode;
   }
->(({ className, id, label, error, hint, type = "text", ...rest }, ref) => {
+>(({ className, id, label, error, hint, trailingIcon, type = "text", ...rest }, ref) => {
   const iid = id ?? React.useId();
   return (
     <div className="flex flex-col gap-1.5">
@@ -20,18 +21,26 @@ export const Input = React.forwardRef<
           {label}
         </label>
       ) : null}
-      <input
-        id={iid}
-        ref={ref}
-        type={type}
-        className={cn(
-          "h-11 px-3 w-full border-2 border-ink-950 bg-white text-ink-950 placeholder:text-ink-600 focus:outline-none focus:ring-2 focus:ring-news focus:border-news transition-colors font-sans",
-          error && "border-news focus:ring-news",
-          className,
-        )}
-        aria-invalid={!!error}
-        {...rest}
-      />
+      <div className="relative">
+        <input
+          id={iid}
+          ref={ref}
+          type={type}
+          className={cn(
+            "h-11 px-3 w-full border-2 border-ink-950 bg-white text-ink-950 placeholder:text-ink-600 focus:outline-none focus:ring-2 focus:ring-news focus:border-news transition-colors font-sans",
+            trailingIcon && "pr-14",
+            error && "border-news focus:ring-news",
+            className,
+          )}
+          aria-invalid={!!error}
+          {...rest}
+        />
+        {trailingIcon ? (
+          <div className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2">
+            {trailingIcon}
+          </div>
+        ) : null}
+      </div>
       {error ? (
         <span className="text-xs font-medium text-news-700">{error}</span>
       ) : hint ? (

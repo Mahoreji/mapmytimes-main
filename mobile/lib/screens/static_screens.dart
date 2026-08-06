@@ -9,7 +9,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher_string.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/env.dart';
 import '../core/theme/colors.dart';
 import '../core/l10n/dict.dart';
@@ -19,6 +19,7 @@ import '../models/blog_models.dart';
 import '../models/careers_models.dart';
 import '../models/notification_models.dart';
 import '../providers/index.dart';
+import '../services/offline_storage_service.dart';
 
 // ---------------------------------------------------------------------------
 // SHARED: SECTIONS MODEL (8 News Sections from reference screenshot)
@@ -605,6 +606,7 @@ class MenuScreen extends ConsumerWidget {
       slivers: [
         SliverAppBar(
           pinned: true,
+          automaticallyImplyLeading: false,
           title: const Text('Menu'),
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(2),
@@ -801,7 +803,7 @@ class _Social extends StatelessWidget {
     final dark = Theme.of(ctx).brightness == Brightness.dark;
     return InkWell(
       onTap: () async {
-        await launchUrlString(url, mode: LaunchMode.externalApplication);
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       },
       child: Container(
         width: 40,
@@ -1596,17 +1598,46 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _firstName = TextEditingController();
+  final _lastName = TextEditingController();
   bool obscure = true;
+  bool _isSignup = false;
 
   @override
   void dispose() {
     _email.dispose();
     _password.dispose();
+    _firstName.dispose();
+    _lastName.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final t = Dict.of(context);
+    if (_isSignup) {
+      if (_email.text.trim().isEmpty || _password.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(backgroundColor: MmtColors.news700, content: Text('Enter email and password')),
+        );
+        return;
+      }
+      final ctrl = ref.read(authControllerProvider.notifier);
+      final u = await ctrl.register(RegisterRequest(
+        email: _email.text.trim(),
+        password: _password.text,
+        firstName: _firstName.text.trim().isEmpty ? null : _firstName.text.trim(),
+        lastName: _lastName.text.trim().isEmpty ? null : _lastName.text.trim(),
+      ),);
+      if (mounted && u != null) {
+        final r = widget.returnTo;
+        if (r != null && r.isNotEmpty) {
+          context.go(r);
+        } else {
+          context.go('/');
+        }
+      }
+      return;
+    }
     if (_email.text.trim().isEmpty || _password.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(backgroundColor: MmtColors.news700, content: Text('Enter email and password')),
@@ -1645,7 +1676,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(t.signIn),
+        title: Text(_isSignup ? 'Create account' : t.signIn),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(2),
           child: Container(height: 2, color: MmtColors.ink950),
@@ -1657,7 +1688,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const BrandLogo(size: 22, showTagline: true),
           const SizedBox(height: 28),
           Text(
-            'Welcome back.',
+            _isSignup ? 'Create your free account.' : 'Welcome back.',
             style: GoogleFonts.getFont(
               'Archivo Black',
               fontSize: 24,
@@ -1668,7 +1699,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            t.signIn,
+            _isSignup ? 'Join MapMyTimes — save stories, set alerts, and follow regions you love.' : t.signIn,
             style: GoogleFonts.inter(fontSize: 15, color: dark ? Colors.white70 : MmtColors.textMuted),
           ),
           const SizedBox(height: 24),
@@ -1679,6 +1710,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               decoration: BoxDecoration(border: Border.all(color: MmtColors.news700, width: 2), color: MmtColors.news50),
               child: Text(authErr, style: const TextStyle(color: MmtColors.news700, fontWeight: FontWeight.w700, fontSize: 12.5)),
             ),
+          if (_isSignup) ...[
+            _in('First name', _firstName, hint: 'Priya'),
+            const SizedBox(height: 14),
+            _in('Last name', _lastName, hint: 'Sharma'),
+            const SizedBox(height: 14),
+          ],
           _in(t.email, _email, keyboard: TextInputType.emailAddress, hint: Env.contactEmail),
           const SizedBox(height: 14),
           _in(t.password, _password, keyboard: TextInputType.visiblePassword, obscure: obscure, suffix: IconButton(
@@ -1703,7 +1740,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               style: ElevatedButton.styleFrom(backgroundColor: MmtColors.news, foregroundColor: Colors.white),
               child: authLoading
                   ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Text(t.signIn.toUpperCase()),
+                  : Text(_isSignup ? t.join.toUpperCase() : t.signIn.toUpperCase()),
             ),
           ),
           const SizedBox(height: 20),
@@ -1721,8 +1758,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Google login coming soon')));
+              onPressed: () async {
+                try {
+                  final auth = ref.read(authServiceProvider);
+                  final u = auth.googleOAuthUrl();
+                  await launchUrl(
+                    u,
+                    webOnlyWindowName: '_self',
+                    mode: LaunchMode.externalApplication,
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Google login failed: $e')));
+                }
               },
               icon: const FaIcon(FontAwesomeIcons.google, size: 17),
               label: const Text('CONTINUE WITH GOOGLE'),
@@ -1732,8 +1780,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {
-                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Facebook login coming soon')));
+              onPressed: () async {
+                try {
+                  final auth = ref.read(authServiceProvider);
+                  final u = auth.facebookOAuthUrl();
+                  await launchUrl(
+                    u,
+                    webOnlyWindowName: '_self',
+                    mode: LaunchMode.externalApplication,
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('Facebook login failed: $e')));
+                }
               },
               icon: const FaIcon(FontAwesomeIcons.facebook, size: 17, color: Color(0xFF1877F2)),
               label: const Text('CONTINUE WITH FACEBOOK'),
@@ -1741,17 +1800,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const SizedBox(height: 24),
           Text(
-            t.noAccountYet,
+            _isSignup ? 'Already have an account?' : t.noAccountYet,
             style: GoogleFonts.inter(fontSize: 14, color: dark ? Colors.white70 : MmtColors.textMuted),
           ),
           const SizedBox(height: 6),
           OutlinedButton(
             onPressed: () {
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                SnackBar(content: Text(t.join)),
-              );
+              setState(() {
+                _isSignup = !_isSignup;
+              });
             },
-            child: Text(t.join.toUpperCase()),
+            child: Text(_isSignup ? t.signIn.toUpperCase() : t.join.toUpperCase()),
           ),
         ],
       ),
@@ -1960,7 +2019,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       appBar: AppBar(
         title: TextField(
           controller: _q,
-          autofocus: true,
+          autofocus: false,
           onChanged: _onInput,
           onSubmitted: (_) => _forceSearch(),
           style: GoogleFonts.inter(color: dark ? Colors.white : MmtColors.ink950, fontSize: 15, fontWeight: FontWeight.w600),
@@ -2169,12 +2228,15 @@ class _SavedScreenState extends ConsumerState<SavedScreen> with AutomaticKeepAli
     final savedIds = ref.watch(savedArticlesNotifierProvider);
     final metaList = ref.watch(savedArticlesNotifierProvider.notifier).allMeta();
     final posts = metaList.map(_metaFromMap).whereType<BlogPostSummaryResponse>().toList(growable: false);
+    final offlineCount = OfflineStorageService.instance.articleCount;
+    final offlineCap = OfflineStorageService.instance.cap;
 
     return CustomScrollView(
       slivers: [
         SliverAppBar(
           pinned: true,
           floating: false,
+          automaticallyImplyLeading: false,
           backgroundColor: dark ? MmtColors.ink950 : MmtColors.surface,
           surfaceTintColor: Colors.transparent,
           title: Text('Saved',
@@ -2184,14 +2246,67 @@ class _SavedScreenState extends ConsumerState<SavedScreen> with AutomaticKeepAli
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
-            child: Row(
-              children: [
-                FaIcon(FontAwesomeIcons.bookmark, size: 14, color: MmtColors.news),
-                const SizedBox(width: 8),
-                Text('${savedIds.length} articles saved offline',
-                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: dark ? Colors.white60 : MmtColors.ink700)),
-              ],
-            ),
+            child: Column(children: [
+              Row(
+                children: [
+                  FaIcon(FontAwesomeIcons.bookmark, size: 14, color: MmtColors.news),
+                  const SizedBox(width: 8),
+                  Text('${savedIds.length} articles saved',
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: dark ? Colors.white60 : MmtColors.ink700)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: dark ? MmtColors.ink900 : Colors.white,
+                  border: Border.all(color: MmtColors.ink950, width: 2),
+                ),
+                child: Row(children: [
+                  Container(width: 34, height: 34, alignment: Alignment.center,
+                    decoration: BoxDecoration(border: Border.all(color: MmtColors.ink950, width: 1.8), color: MmtColors.news50),
+                    child: FaIcon(FontAwesomeIcons.cloudDownload, size: 14, color: MmtColors.news)),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Offline articles: $offlineCount of $offlineCap',
+                      style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w800, color: dark ? Colors.white : MmtColors.ink950)),
+                    const SizedBox(height: 2),
+                    ClipRRect(borderRadius: BorderRadius.circular(2), child: LinearProgressIndicator(
+                      value: offlineCap > 0 ? offlineCount / offlineCap : 0,
+                      minHeight: 4,
+                      backgroundColor: dark ? MmtColors.ink700 : MmtColors.ink100,
+                      valueColor: const AlwaysStoppedAnimation<Color>(MmtColors.news),
+                    )),
+                  ])),
+                  const SizedBox(width: 10),
+                  if (offlineCount > 0)
+                    InkWell(
+                      onTap: () async {
+                        final ok = await showDialog<bool>(context: ctx, builder: (dCtx) => AlertDialog(
+                          title: Text('Clear offline articles?', style: GoogleFonts.archivoBlack(fontSize: 16)),
+                          content: Text('This will remove $offlineCount downloaded article(s) from this device.',
+                            style: GoogleFonts.inter(fontSize: 13, color: MmtColors.ink700)),
+                          actions: [
+                            TextButton(onPressed: () => Navigator.pop(dCtx, false), child: const Text('CANCEL')),
+                            TextButton(onPressed: () => Navigator.pop(dCtx, true),
+                              style: TextButton.styleFrom(foregroundColor: MmtColors.news),
+                              child: const Text('CLEAR ALL')),
+                          ],
+                        ));
+                        if (ok == true) {
+                          await OfflineStorageService.instance.clearAllArticles();
+                          if (ctx.mounted) setState(() {});
+                        }
+                      },
+                      child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(border: Border.all(color: MmtColors.ink950, width: 1.8)),
+                        child: Text('CLEAR',
+                          style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1.1, color: dark ? Colors.white : MmtColors.ink950))),
+                    ),
+                ]),
+              ),
+            ]),
           ),
         ),
         if (posts.isEmpty)
@@ -2310,6 +2425,7 @@ class ProfileScreen extends ConsumerWidget {
       slivers: [
         SliverAppBar(
           pinned: true, floating: false,
+          automaticallyImplyLeading: false,
           backgroundColor: dark ? MmtColors.ink950 : MmtColors.surface,
           surfaceTintColor: Colors.transparent,
           title: Text('Profile',
@@ -2354,6 +2470,13 @@ class ProfileScreen extends ConsumerWidget {
               const SectionEyebrow('YOUR LISTS'),
               const SizedBox(height: 14),
               _SettingRow(icon: FontAwesomeIcons.bookmark, label: 'Saved Articles', trailing: '$savedCount saved', dark: dark, onTap: () => ctx.go('/saved')),
+              _SettingRow(
+                icon: FontAwesomeIcons.cloudDownload,
+                label: 'Offline Articles',
+                trailing: '${OfflineStorageService.instance.articleCount} of ${OfflineStorageService.instance.cap}',
+                dark: dark,
+                onTap: () => ctx.go('/saved'),
+              ),
               _SettingRow(icon: FontAwesomeIcons.clockRotateLeft, label: 'Recently Viewed', trailing: '${ref.watch(recentlyViewedProvider).length} items', dark: dark, onTap: () {}),
 
               const SizedBox(height: 28),

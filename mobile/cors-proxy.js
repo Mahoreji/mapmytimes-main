@@ -8,7 +8,7 @@ https.globalAgent = new https.Agent({ rejectUnauthorized: false });
 
 const PORT = 5555;
 const TARGET_HOST = 'api.mapmytimes.com';
-const S3_HOST = 'mapmytour-bucket-prod.s3.ap-south-1.amazonaws.com';
+const S3_HOST = 'mapnytimes.s3.ap-south-1.amazonaws.com';
 const UPLOADS_REMOTE_HOST = 'api.mapmytimes.com';
 
 const CORS_HEADERS = {
@@ -30,7 +30,7 @@ const server = http.createServer((req, res) => {
   for (const [k, v] of Object.entries(CORS_HEADERS)) res.setHeader(k, v);
 
   // -------- ROUTE DISPATCH: pick upstream host based on URL path --------
-  // /s3/*           → mapmytour-bucket-prod S3 bucket (strip /s3 prefix)
+  // /s3/*           → mapnytimes S3 bucket (strip /s3 prefix)
   // /uploads/*      → api.mapmytimes.com/uploads/* (passthrough)
   // everything else → api.mapmytimes.com (original API proxy)
   const raw = req.url ?? '/';

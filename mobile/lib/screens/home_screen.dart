@@ -1,11 +1,14 @@
 // ---------------- HOME SCREEN ----------------
 // INTEGRATED: Riverpod providers (featured/trending/latest/shorts/categories)
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../core/api/reader_api.dart';
 import '../core/env.dart';
 import '../core/theme/colors.dart';
 import '../core/l10n/dict.dart';
@@ -14,7 +17,7 @@ import '../models/blog_models.dart';
 import '../providers/index.dart';
 import '../widgets/news_card.dart';
 import '../widgets/editorial_components.dart';
-import 'static_screens.dart' show kMmtSections, MmtSection, SectionTile;
+import 'static_screens.dart' show kMmtSections, SectionTile;
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -24,8 +27,16 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAliveClientMixin {
+  late final Future<List<ReaderContinueItem>> _continueReadingFuture;
+
   @override
   bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _continueReadingFuture = ReaderApi.instance.getLatestReadingProgress(limit: 20);
+  }
 
   Future<void> _onRefresh() async {
     ref.invalidate(featuredPostsProvider);
@@ -44,45 +55,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     ]);
   }
 
-  Widget _skel(double h, {double w = double.infinity}) => Container(
-        height: h,
-        width: w,
-        decoration: BoxDecoration(
-          border: Border.all(color: MmtColors.ink700, width: 2),
-          color: MmtColors.ink600.withValues(alpha: 0.15),
+  Widget _skel(double h, {double w = double.infinity}) => ClipRRect(
+        borderRadius: MmtTokens.glassRadiusMd(),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: MmtTokens.glassBlurSm, sigmaY: MmtTokens.glassBlurSm),
+          child: Container(
+            height: h,
+            width: w,
+            decoration: BoxDecoration(
+              borderRadius: MmtTokens.glassRadiusMd(),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.06), width: MmtTokens.glassHairline),
+              color: MmtColors.ink600.withValues(alpha: 0.08),
+              boxShadow: MmtTokens.glassShadowSm(),
+            ),
+          ),
         ),
       );
 
   Widget _sectionErr(String msg, VoidCallback retry) => Padding(
         padding: const EdgeInsets.all(12),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            border: Border.all(color: MmtColors.ink950, width: 2),
-            color: MmtColors.news50,
-            boxShadow: const [BoxShadow(offset: Offset(4, 4), color: MmtColors.ink950)],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('⚠ ${Dict.of(context).common.loadingError}', style: const TextStyle(color: MmtColors.news700, fontWeight: FontWeight.w900, fontSize: 13)),
-              const SizedBox(height: 6),
-              Text(msg, style: const TextStyle(fontSize: 12, color: MmtColors.ink700, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 10),
-              InkWell(
-                onTap: retry,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: MmtColors.ink950, width: 2),
-                    color: Colors.white,
-                    boxShadow: const [BoxShadow(offset: Offset(3, 3), color: MmtColors.ink950)],
-                  ),
-                  child: Text(Dict.of(context).common.retry.toUpperCase(),
-                      style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.4),),
-                ),
+        child: ClipRRect(
+          borderRadius: MmtTokens.glassRadiusMd(),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: MmtTokens.glassBlurMd, sigmaY: MmtTokens.glassBlurMd),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: MmtTokens.glassRadiusMd(),
+                border: Border.all(color: MmtColors.news.withValues(alpha: 0.20), width: MmtTokens.glassHairline),
+                color: MmtColors.news50.withValues(alpha: 0.80),
+                boxShadow: MmtTokens.glassShadowMd(),
               ),
-            ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('⚠ ${Dict.of(context).common.loadingError}', style: TextStyle(color: MmtColors.news700, fontWeight: FontWeight.w900, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Text(msg, style: const TextStyle(fontSize: 12, color: MmtColors.ink700, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: retry,
+                    borderRadius: MmtTokens.glassRadiusSm(),
+                    child: ClipRRect(
+                      borderRadius: MmtTokens.glassRadiusSm(),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: MmtTokens.glassBlurSm, sigmaY: MmtTokens.glassBlurSm),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            borderRadius: MmtTokens.glassRadiusSm(),
+                            border: Border.all(color: MmtColors.ink950.withValues(alpha: 0.10), width: MmtTokens.glassHairline),
+                            color: Colors.white.withValues(alpha: 0.90),
+                            boxShadow: MmtTokens.glassShadowSm(),
+                          ),
+                          child: Text(
+                            Dict.of(context).common.retry.toUpperCase(),
+                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 11, letterSpacing: 1.4),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       );
@@ -211,6 +247,139 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
               );
             },
           ),
+          // Continue Reading Shelf
+          FutureBuilder<List<ReaderContinueItem>>(
+            future: _continueReadingFuture,
+            builder: (ctx, snap) {
+              final items = snap.data ?? const <ReaderContinueItem>[];
+              final filtered = items.where((e) => e.scrollPercent >= 5 && e.scrollPercent <= 95).toList(growable: false);
+              if (filtered.isEmpty) {
+                return const SliverToBoxAdapter(child: SizedBox.shrink());
+              }
+              return SliverList.list(children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 28, 18, 10),
+                  child: Row(
+                    children: [
+                      const SectionEyebrow('CONTINUE READING'),
+                      const Spacer(),
+                      FaIcon(FontAwesomeIcons.bookOpen, size: 14, color: MmtColors.news),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 248,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 14),
+                    itemBuilder: (_, i) {
+                      final item = filtered[i];
+                      final post = item.post;
+                      final slug = post?.slug ?? item.postId;
+                      final cover = post?.cover;
+                      final title = post?.title ?? '(Untitled)';
+                      final rt = item.readingTimeMinutes ?? post?.readingTimeMinutes ?? 7;
+                      final remaining = (rt * (1 - item.scrollPercent / 100)).ceil();
+                      final frac = item.scrollPercent / 100;
+                      return SizedBox(
+                        width: 240,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () {
+                            final params = <String, String>{
+                              'id': item.postId,
+                              'resumePercent': item.scrollPercent.toString(),
+                            };
+                            ctx.push('/article/${Uri.encodeComponent(slug)}?id=${Uri.encodeComponent(item.postId)}&resumePercent=${item.scrollPercent}');
+                          },
+                          child: Container(
+                            clipBehavior: Clip.antiAlias,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.black.withValues(alpha: 0.06), width: 1.5),
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(color: MmtColors.ink950.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                AspectRatio(
+                                  aspectRatio: 16 / 10,
+                                  child: cover != null && cover.isNotEmpty
+                                      ? Image.network(cover, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(colors: [MmtColors.news50, MmtColors.ink200]),
+                                          ),
+                                          child: Center(child: FaIcon(FontAwesomeIcons.newspaper, size: 28, color: MmtColors.news700)),
+                                        ))
+                                      : Container(
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(colors: [MmtColors.news50, MmtColors.ink200]),
+                                          ),
+                                          child: Center(child: FaIcon(FontAwesomeIcons.newspaper, size: 28, color: MmtColors.news700)),
+                                        ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+                                  child: Text(
+                                    title,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.inter(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                      height: 1.28,
+                                      color: MmtColors.ink950,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      SizedBox(
+                                        height: 3,
+                                        width: double.infinity,
+                                        child: Stack(
+                                          children: [
+                                            Container(color: MmtColors.ink200),
+                                            FractionallySizedBox(
+                                              widthFactor: frac,
+                                              child: Container(color: const Color(0xFFE31E24)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        '~$remaining MIN LEFT',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 0.8,
+                                          color: MmtColors.ink700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ]);
+            },
+          ),
           // Latest Stories
           SliverToBoxAdapter(
             child: Padding(
@@ -262,13 +431,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
             error: (_, __) => const SliverToBoxAdapter(child: SizedBox.shrink()),
             data: (list) {
               if (list.isEmpty) return const SliverToBoxAdapter(child: SizedBox.shrink());
-              final picks = list.take(list.length > 4 ? 4 : list.length).toList(growable: false);
+              final picks = list.take(list.length > 6 ? 6 : list.length).toList(growable: false);
               return SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: 18),
                 sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 14, crossAxisSpacing: 14, childAspectRatio: 0.74),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, mainAxisSpacing: 16, crossAxisSpacing: 16, childAspectRatio: 0.68),
                   delegate: SliverChildBuilderDelegate(
-                    (_, i) => SecondaryGridCard(post: picks[i], onTap: () => _openPost(context, picks[i])),
+                    (_, i) => PersonalizedPickCard(post: picks[i], onTap: () => _openPost(context, picks[i])),
                     childCount: picks.length,
                   ),
                 ),
@@ -323,10 +492,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
                 children: [
                   SectionEyebrow('Shorts'),
                   const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(color: MmtColors.ink950, border: Border.all(color: MmtColors.ink950, width: 2), borderRadius: BorderRadius.circular(999)),
-                    child: const FaIcon(FontAwesomeIcons.bolt, size: 11, color: MmtColors.news),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(999),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: MmtTokens.glassBlurSm, sigmaY: MmtTokens.glassBlurSm),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: MmtColors.ink950.withValues(alpha: 0.80),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.16), width: MmtTokens.glassHairline),
+                          borderRadius: BorderRadius.circular(999),
+                          boxShadow: MmtTokens.glassShadowSm(),
+                        ),
+                        child: const FaIcon(FontAwesomeIcons.bolt, size: 11, color: MmtColors.news),
+                      ),
+                    ),
                   ),
                   const Spacer(),
                   InkWell(
@@ -661,14 +841,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
     return SliverAppBar(
       pinned: true,
       floating: false,
-      backgroundColor: dark ? MmtColors.ink950 : Colors.white,
+      backgroundColor: Colors.transparent,
       foregroundColor: dark ? Colors.white : MmtColors.ink950,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(2),
-        child: Container(height: 2, color: MmtColors.ink950),
+      flexibleSpace: ClipRRect(
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(MmtTokens.radiusLg)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: MmtTokens.glassBlurLg, sigmaY: MmtTokens.glassBlurLg, tileMode: TileMode.clamp),
+          child: Container(
+            decoration: BoxDecoration(
+              color: (dark ? MmtColors.ink950 : Colors.white).withValues(alpha: dark ? 0.60 : 0.72),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(MmtTokens.radiusLg)),
+              border: Border(
+                bottom: BorderSide(color: (dark ? Colors.white : MmtColors.ink950).withValues(alpha: dark ? 0.08 : 0.06), width: MmtTokens.glassHairline),
+              ),
+              boxShadow: MmtTokens.glassShadowHeader(),
+            ),
+          ),
+        ),
       ),
       titleSpacing: 16,
       title: Padding(
@@ -678,19 +870,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
             const BrandLogo(size: 14),
             const Spacer(),
             InkWell(
-              onTap: () => context.push('/search'),
-              child: Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                alignment: Alignment.centerLeft,
-                decoration: BoxDecoration(border: Border.all(color: MmtColors.ink950, width: 2), color: Colors.white),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.search, size: 16, color: MmtColors.ink700),
-                    const SizedBox(width: 8),
-                    Text(t.nav.search, style: const TextStyle(fontSize: 12, color: MmtColors.ink600, fontWeight: FontWeight.w600)),
-                  ],
+              onTap: () async {
+                try { FocusScope.of(context).unfocus(); } catch (_) {}
+                await Future<void>.delayed(const Duration(milliseconds: 50));
+                if (context.mounted) GoRouter.of(context).go('/search');
+              },
+              borderRadius: MmtTokens.glassRadiusPill(),
+              child: ClipRRect(
+                borderRadius: MmtTokens.glassRadiusPill(),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: MmtTokens.glassBlurSm, sigmaY: MmtTokens.glassBlurSm),
+                  child: Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    alignment: Alignment.centerLeft,
+                    decoration: BoxDecoration(
+                      borderRadius: MmtTokens.glassRadiusPill(),
+                      border: Border.all(color: MmtColors.ink950.withValues(alpha: 0.10), width: MmtTokens.glassHairline),
+                      color: Colors.white.withValues(alpha: 0.85),
+                      boxShadow: MmtTokens.glassShadowSm(),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.search, size: 16, color: MmtColors.ink700),
+                        const SizedBox(width: 8),
+                        Text(t.nav.search, style: const TextStyle(fontSize: 12, color: MmtColors.ink600, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -708,13 +916,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with AutomaticKeepAlive
                 ),);
                 }
               },
-              child: Container(
-                width: 48,
-                height: 36,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: MmtColors.news, border: Border.all(color: MmtColors.ink950, width: 2)),
-                child: Text(LangScope.codeOf(context).name.toUpperCase(),
-                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.white, letterSpacing: 0.6),),
+              borderRadius: MmtTokens.glassRadiusSm(),
+              child: ClipRRect(
+                borderRadius: MmtTokens.glassRadiusSm(),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: MmtTokens.glassBlurSm, sigmaY: MmtTokens.glassBlurSm),
+                  child: Container(
+                    width: 48,
+                    height: 36,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: MmtColors.news.withValues(alpha: 0.92),
+                      borderRadius: MmtTokens.glassRadiusSm(),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.20), width: MmtTokens.glassHairline),
+                      boxShadow: [
+                        BoxShadow(color: MmtColors.news.withValues(alpha: 0.25), blurRadius: 10, offset: const Offset(0, 3)),
+                      ],
+                    ),
+                    child: Text(LangScope.codeOf(context).name.toUpperCase(),
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12, color: Colors.white, letterSpacing: 0.6),),
+                  ),
+                ),
               ),
             ),
           ],

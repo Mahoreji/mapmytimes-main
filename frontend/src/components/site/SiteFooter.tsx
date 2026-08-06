@@ -18,8 +18,8 @@ export function SiteFooter() {
 
   return (
     <footer className="mt-16 bg-ink-950 text-white border-t-4 border-news">
-      <div className="mx-auto max-w-7xl px-4 py-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
-        <div className="space-y-5">
+      <div className="mx-auto max-w-7xl px-4 py-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-10">
+        <div className="space-y-5 sm:col-span-2 md:col-span-3 lg:col-span-1">
           <Link href="/" aria-label="MapMyTimes — Home" className="inline-block">
             <BrandLogo className="h-24 sm:h-28 md:h-32 w-auto drop-shadow-[0_4px_0_rgba(227,30,36,0.4)]" />
           </Link>
@@ -126,6 +126,27 @@ export function SiteFooter() {
             </li>
           </ul>
         </div>
+
+        <div>
+          <h4 className="font-headline uppercase text-lg mb-4">Legal & Policies</h4>
+          <ul className="flex flex-col gap-2 text-sm text-white/80">
+            <li>
+              <Link href="/editorial-policy" className="hover:text-news">Editorial Policy</Link>
+            </li>
+            <li>
+              <Link href="/fact-check-policy" className="hover:text-news">Fact-Check Policy</Link>
+            </li>
+            <li>
+              <Link href="/privacy-policy" className="hover:text-news">Privacy Policy</Link>
+            </li>
+            <li>
+              <Link href="/terms-and-conditions" className="hover:text-news">Terms & Conditions</Link>
+            </li>
+            <li>
+              <Link href="/copyright-notice" className="hover:text-news">Copyright Notice</Link>
+            </li>
+          </ul>
+        </div>
       </div>
 
       <div className="border-t-2 border-white/10">
@@ -134,9 +155,12 @@ export function SiteFooter() {
             <Mic className="h-3.5 w-3.5 text-news" />
             <span>© {new Date().getFullYear()} MapMyTimes — MAPMYTOUR LLP. All rights reserved.</span>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
             <Link href="/about" className="hover:text-white">About</Link>
             <Link href="/contact" className="hover:text-white">Contact</Link>
+            <Link href="/privacy-policy" className="hover:text-white">Privacy</Link>
+            <Link href="/terms-and-conditions" className="hover:text-white">Terms</Link>
+            <Link href="/copyright-notice" className="hover:text-white">Copyright</Link>
             <span className="text-white/30">|</span>
             <span className="tracking-widest font-bold text-white/80">
               {SITE.tagline}

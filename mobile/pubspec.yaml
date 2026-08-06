@@ -89,3 +89,4 @@ flutter:
     - assets/icons/
     - assets/launcher/
     - assets/.env
+    - .env
