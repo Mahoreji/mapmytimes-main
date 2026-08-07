@@ -197,38 +197,6 @@ class NewsCardVertical extends ConsumerWidget {
         : '';
     final catName = (post.categories?.isNotEmpty ?? false) ? post.categories!.first.name : '';
 
-    final chip = ClipRRect(
-      borderRadius: MmtTokens.glassRadiusSm(),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: MmtTokens.glassBlurSm, sigmaY: MmtTokens.glassBlurSm),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: MmtColors.news.withValues(alpha: 0.92),
-            borderRadius: MmtTokens.glassRadiusSm(),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.22), width: MmtTokens.glassHairline),
-            boxShadow: [
-              BoxShadow(
-                color: MmtColors.news.withValues(alpha: 0.28),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Text(
-            (catName.isNotEmpty ? catName : 'NEWS').toUpperCase(),
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.0,
-              color: Colors.white,
-              height: 1.0,
-            ),
-          ),
-        ),
-      ),
-    );
-
     final title = Text(
       post.title,
       maxLines: compact ? 2 : 3,
@@ -326,7 +294,7 @@ class NewsCardVertical extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     ClipRRect(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(MmtTokens.radiusMd - 0.8)),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(MmtTokens.radiusMd - 0.8)),
                       child: AspectRatio(
                         aspectRatio: compact ? (4 / 3) : (16 / 9),
                         child: post.cover.isEmpty

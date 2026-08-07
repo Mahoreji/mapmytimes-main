@@ -14,6 +14,7 @@ import {
   Mic,
   User as UserIcon,
   Briefcase,
+  ShieldCheck,
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { useAuth } from "@/lib/auth/AuthProvider";
@@ -21,18 +22,35 @@ import { cn, initials, SITE } from "@/lib/utils";
 import { avatarOrDefault } from "@/lib/assets";
 import { PageHeader, Card, StatCard } from "@/components/dashboard/Panels";
 
-const NAV = [
-  { href: "/dashboard",         label: "Dashboard",   icon: <LayoutDashboard className="h-4 w-4" /> },
-  { href: "/dashboard/posts",   label: "My Posts",    icon: <FileText className="h-4 w-4" /> },
-  { href: "/dashboard/comments", label: "Moderation", icon: <MessageSquareText className="h-4 w-4" /> },
-  { href: "/dashboard/applications", label: "My Apps", icon: <Briefcase className="h-4 w-4" /> },
-  { href: "/dashboard/notifications", label: "Alerts", icon: <Bell className="h-4 w-4" /> },
-  { href: "/dashboard/settings", label: "Settings", icon: <SettingsIcon className="h-4 w-4" /> },
-];
-
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const auth = useAuth();
+
+  const role = auth.user?.role;
+  const hasPressIdAccess =
+    role === "PRESS_REPORTER" ||
+    role === "STAFF_ADMIN" ||
+    role === "ADMIN" ||
+    role === "SUPER_ADMIN";
+
+  const NAV = [
+    { href: "/dashboard",         label: "Dashboard",   icon: <LayoutDashboard className="h-4 w-4" /> },
+    ...(hasPressIdAccess
+      ? [
+          {
+            href: "/dashboard/my-id",
+            label: "My ID Card",
+            icon: <ShieldCheck className="h-4 w-4" />,
+          },
+        ]
+      : []),
+    { href: "/dashboard/posts",   label: "My Posts",    icon: <FileText className="h-4 w-4" /> },
+    { href: "/dashboard/comments", label: "Moderation", icon: <MessageSquareText className="h-4 w-4" /> },
+    { href: "/dashboard/applications", label: "My Apps", icon: <Briefcase className="h-4 w-4" /> },
+    { href: "/dashboard/notifications", label: "Alerts", icon: <Bell className="h-4 w-4" /> },
+    { href: "/dashboard/settings", label: "Settings", icon: <SettingsIcon className="h-4 w-4" /> },
+  ];
+
   return (
     <AuthGuard requireAuth>
       <div className="min-h-[calc(100vh-200px)] bg-ink-900/5">

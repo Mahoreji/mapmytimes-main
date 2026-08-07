@@ -18,6 +18,14 @@ import type {
   BlogStatsResponse,
   BlogSettingsResponse,
   ReadingProgressWithPostSummary,
+  Department,
+  StaffStatus,
+  StaffListCardDTO,
+  StaffPressIdDTO,
+  StaffVerifyResponseDTO,
+  StaffProfileForSelfDTO,
+  StaffAdminCreateRequestDTO,
+  StaffAdminUpdateRequestDTO,
 } from "@/types/blog";
 import type { LanguageCode } from "@/lib/i18n/types";
 
@@ -30,6 +38,8 @@ const MEDIA = "/api/v1/blog/media";
 const SOCIAL = "/api/v1/social";
 const SETTINGS = "/api/v1/blog/settings";
 const READING_PROGRESS = "/api/v1/reading-progress";
+const STAFF_PUBLIC = "/api/v1/staff";
+const STAFF_ADMIN = "/api/v1/admin/staff";
 
 function toQuery(params: Record<string, any>) {
   const usp = new URLSearchParams();
@@ -341,6 +351,78 @@ export const blogApi = {
   readingProgress: {
     latest: (limit: number = 20) =>
       http.get<APIResponse<ReadingProgressWithPostSummary[]>>(`${READING_PROGRESS}/me/latest${toQuery({ limit })}`).then(unwrap),
+  },
+
+  staff: {
+    public: {
+      list: () =>
+        http.get<APIResponse<StaffListCardDTO[]>>(`${STAFF_PUBLIC}`).then(unwrap),
+
+      byDepartment: (department: Department) =>
+        http.get<APIResponse<StaffListCardDTO[]>>(`${STAFF_PUBLIC}/department/${department}`).then(unwrap),
+
+      search: (q: string) =>
+        http.get<APIResponse<StaffListCardDTO[]>>(`${STAFF_PUBLIC}/search${toQuery({ q })}`).then(unwrap),
+
+      getByIdNumber: (idNumber: string) =>
+        http.get<APIResponse<StaffPressIdDTO>>(`${STAFF_PUBLIC}/${encodeURIComponent(idNumber)}`).then(unwrap),
+
+      verify: (idNumber: string) =>
+        http.get<APIResponse<StaffVerifyResponseDTO>>(`${STAFF_PUBLIC}/verify/${encodeURIComponent(idNumber)}`).then(unwrap),
+    },
+
+    me: {
+      get: () =>
+        http.get<APIResponse<StaffProfileForSelfDTO>>(`${STAFF_ADMIN}/me`).then(unwrap),
+
+      requestReissue: (reason?: string) =>
+        http
+          .post<APIResponse<void>>(`${STAFF_ADMIN}/me/reissue`, { reason: reason || "Requested via dashboard" })
+          .then(unwrap),
+    },
+
+    admin: {
+      list: () =>
+        http.get<APIResponse<StaffProfileForSelfDTO[]>>(`${STAFF_ADMIN}`).then(unwrap),
+
+      get: (id: ID) =>
+        http.get<APIResponse<StaffProfileForSelfDTO>>(`${STAFF_ADMIN}/${id}`).then(unwrap),
+
+      create: (body: StaffAdminCreateRequestDTO) =>
+        http.post<APIResponse<StaffAdminCreateRequestDTO>>(`${STAFF_ADMIN}`, body).then(unwrap),
+
+      update: (id: ID, body: StaffAdminUpdateRequestDTO) =>
+        http.put<APIResponse<StaffAdminUpdateRequestDTO>>(`${STAFF_ADMIN}/${id}`, body).then(unwrap),
+
+      revoke: (id: ID) =>
+        http.delete<APIResponse<void>>(`${STAFF_ADMIN}/${id}`).then(unwrap),
+
+      regenerateId: (id: ID) =>
+        http.post<APIResponse<string>>(`${STAFF_ADMIN}/${id}/regenerate-id`).then(unwrap),
+
+      uploadPhoto: (id: ID, file: File) => {
+        const fd = new FormData();
+        fd.append("file", file);
+        return http
+          .post<APIResponse<string>>(`${STAFF_ADMIN}/${id}/photo`, fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          })
+          .then(unwrap);
+      },
+
+      uploadSignature: (id: ID, file: File) => {
+        const fd = new FormData();
+        fd.append("file", file);
+        return http
+          .post<APIResponse<string>>(`${STAFF_ADMIN}/${id}/signature`, fd, {
+            headers: { "Content-Type": "multipart/form-data" },
+          })
+          .then(unwrap);
+      },
+
+      downloadPdf: (id: ID) =>
+        http.get<ArrayBuffer>(`${STAFF_ADMIN}/${id}/download/pdf`, { responseType: "arraybuffer" }),
+    },
   },
 };
 

@@ -132,6 +132,10 @@ class Dict {
   final String noOpenRoles;
   final String applyNow;
 
+  // Staff
+  final String ourTeam;
+  final String verifyPress;
+
   // Shorts / videos
   final String watchMore;
   final String allVideos;
@@ -184,6 +188,8 @@ class Dict {
     required this.openRoles,
     required this.noOpenRoles,
     required this.applyNow,
+    required this.ourTeam,
+    required this.verifyPress,
     required this.watchMore,
     required this.allVideos,
     required this.noStoriesYet,
@@ -276,6 +282,8 @@ const Dict en = Dict(
   openRoles: 'Open roles',
   noOpenRoles: 'No open roles right now.',
   applyNow: 'Apply now',
+  ourTeam: 'Our Team',
+  verifyPress: 'Verify Press ID',
   watchMore: 'Watch more',
   allVideos: 'All videos',
   noStoriesYet: 'No stories published in this section yet.',
@@ -326,6 +334,8 @@ const Dict hi = Dict(
   openRoles: 'खुली भूमिकाएँ',
   noOpenRoles: 'अभी कोई खुली भूमिका नहीं।',
   applyNow: 'अभी आवेदन करें',
+  ourTeam: 'हमारी टीम',
+  verifyPress: 'प्रेस आईडी सत्यापित करें',
   watchMore: 'और देखें',
   allVideos: 'सभी वीडियो',
   noStoriesYet: 'इस श्रेणी में अभी कोई कहानी नहीं।',

@@ -61,7 +61,7 @@ class Env {
         final port = Uri.base.hasPort ? Uri.base.port : 0;
         if (host == 'localhost' || host == '127.0.0.1') {
           if (port == 3000 || port == 3001 || port == 3002 || port == 5173 || port == 5174 || port == 5555 || port == 8080) {
-            return 'http://localhost:8090';
+            return 'http://localhost:5052';
           }
         }
       } catch (_) {}
@@ -82,7 +82,7 @@ class Env {
         if (host == 'localhost' || host == '127.0.0.1') {
           final port = Uri.base.hasPort ? Uri.base.port : 0;
           if (port == 3000 || port == 3001 || port == 3002 || port == 5173 || port == 5174 || port == 5555 || port == 8080) {
-            return 'http://localhost:8081';
+            return 'http://localhost:5051';
           }
         }
       } catch (_) {}
@@ -135,7 +135,7 @@ class Env {
       try {
         final host = Uri.base.host;
         if (host == 'localhost' || host == '127.0.0.1') {
-          return 'http://localhost:8090/uploads';
+          return 'http://localhost:5052/uploads';
         }
       } catch (_) {}
     }

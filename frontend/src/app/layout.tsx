@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo_Black, Inter } from "next/font/google";
+import { Archivo_Black, Inter, Bebas_Neue, Poppins } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/lib/providers/AppProviders";
 import { SiteHeader } from "@/components/site/SiteHeader";
@@ -18,6 +18,20 @@ const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-inter",
+  display: "swap",
+});
+
+const bebasNeue = Bebas_Neue({
+  subsets: ["latin"],
+  weight: "400",
+  variable: "--font-bebas-neue",
+  display: "swap",
+});
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+  variable: "--font-poppins",
   display: "swap",
 });
 
@@ -188,7 +202,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${archivo.variable} ${inter.variable}`}>
+    <html lang="en" className={`${archivo.variable} ${inter.variable} ${bebasNeue.variable} ${poppins.variable}`}>
       <body className="min-h-screen flex flex-col bg-white text-ink-950 antialiased">
         <AppProviders>
           <GlobalJsonLd />

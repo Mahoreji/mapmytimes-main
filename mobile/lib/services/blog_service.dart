@@ -266,4 +266,39 @@ class BlogService {
     );
     return env.data ?? <TagResponse>[];
   }
+
+  // ===========================================================================
+  // STAFF
+  // ===========================================================================
+  static const staffPublic = '/api/v1/staff';
+
+  Future<List<StaffListCardDTO>> staffPublicList() async {
+    final r = await dio.get(staffPublic);
+    final env = _unwrapEnvelope(
+      r,
+      (Object? json) {
+        if (json is List) {
+          return json.map((j) => StaffListCardDTO.fromJson(Map<String, dynamic>.from(j as Map))).toList(growable: false);
+        }
+        if (json is Map<String, dynamic>) {
+          final p = PaginatedResponse.fromJson(
+            json,
+            (j) => StaffListCardDTO.fromJson(Map<String, dynamic>.from(j as Map)),
+          );
+          return p.items;
+        }
+        return <StaffListCardDTO>[];
+      },
+    );
+    return env.data ?? <StaffListCardDTO>[];
+  }
+
+  Future<StaffListCardDTO?> staffVerify(String idNumber) async {
+    final r = await dio.get('/api/v1/staff/verify/${Uri.encodeComponent(idNumber)}');
+    final env = _unwrapEnvelope(
+      r,
+      (Object? j) => StaffListCardDTO.fromJson(Map<String, dynamic>.from(j as Map)),
+    );
+    return env.data;
+  }
 }

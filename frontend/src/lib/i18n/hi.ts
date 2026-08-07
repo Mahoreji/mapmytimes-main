@@ -41,6 +41,7 @@ export const hi: Dict = {
     sections: "अनुभाग",
     explore: "खोजें",
     about: "परिचय",
+    ourTeam: "हमारी टीम",
     contact: "संपर्क",
     careers: "नौकरियाँ",
     signin: "साइन इन",

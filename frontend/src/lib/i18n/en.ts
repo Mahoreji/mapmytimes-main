@@ -41,6 +41,7 @@ export const en: Dict = {
     sections: "Sections",
     explore: "Explore",
     about: "About",
+    ourTeam: "Our Team",
     contact: "Contact",
     careers: "Careers",
     signin: "Sign in",

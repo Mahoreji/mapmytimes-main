@@ -234,3 +234,189 @@ export interface UpdateCommentRequest {
 export interface ApproveCommentRequest {
   reason?: string;
 }
+
+export type Department =
+  | "GROUND_REPORTER"
+  | "CAMERAMAN"
+  | "VIDEOGRAPHER"
+  | "EDITOR"
+  | "SUB_EDITOR"
+  | "COPY_EDITOR"
+  | "ADMIN_STAFF"
+  | "FRANCHISE_HEAD"
+  | "HR"
+  | "DESIGNER"
+  | "PHOTOGRAPHER"
+  | "JOURNALIST"
+  | "SENIOR_EDITOR"
+  | "CHIEF_EDITOR"
+  | "NEWS_ANCHOR"
+  | "PRODUCER"
+  | "ASSOCIATE_PRODUCER"
+  | "CONTENT_WRITER"
+  | "DIGITAL_MARKETING"
+  | "SEO_SPECIALIST"
+  | "GRAPHIC_DESIGNER"
+  | "VIDEO_EDITOR"
+  | "SOUND_ENGINEER"
+  | "TECHNICIAN"
+  | "RESEARCHER"
+  | "CORRESPONDENT"
+  | "BUREAU_CHIEF"
+  | "NEWS_DIRECTOR"
+  | "MANAGING_EDITOR"
+  | "FEATURE_WRITER"
+  | "COLUMNIST"
+  | "CARTOONIST"
+  | "LIBRARIAN"
+  | "ARCHIVIST"
+  | "TRANSLATOR"
+  | "PROOFREADER"
+  | "FRONT_DESK"
+  | "ACCOUNTS"
+  | "LEGAL"
+  | "IT_SUPPORT"
+  | "SALES_EXECUTIVE"
+  | "MARKETING_EXECUTIVE"
+  | "PUBLIC_RELATIONS"
+  | "EVENT_MANAGER"
+  | "TRAINEE"
+  | "INTERN";
+
+export type StaffStatus =
+  | "ACTIVE"
+  | "SUSPENDED"
+  | "EXPIRED"
+  | "REVOKED"
+  | "UNDER_REVIEW"
+  | "PENDING_APPROVAL"
+  | "TRANSFERRED"
+  | "RESIGNED"
+  | "RETIRED";
+
+export interface StaffListCardDTO {
+  idNumber: string;
+  fullName: string;
+  designation?: string | null;
+  department: Department;
+  photoUrl?: string | null;
+  city?: string | null;
+  state?: string | null;
+  validTill?: string | null;
+  status: StaffStatus;
+  qrCodeUrl?: string | null;
+}
+
+export interface StaffPressIdDTO {
+  idNumber: string;
+  fullName: string;
+  designation?: string | null;
+  department: Department;
+  photoUrl?: string | null;
+  signatureUrl?: string | null;
+  city?: string | null;
+  state?: string | null;
+  district?: string | null;
+  dateOfBirth?: string | null;
+  issueDate?: string | null;
+  validTill?: string | null;
+  status: StaffStatus;
+  validityStatusText?: string | null;
+  qrCodeUrl?: string | null;
+  workEmailMasked?: string | null;
+  mobileMasked?: string | null;
+  bloodGroupMasked?: string | null;
+  reporterBatchId?: string | null;
+}
+
+export interface StaffVerifyResponseDTO {
+  isValid: boolean;
+  verificationMessage: string;
+  fullName?: string | null;
+  idNumber?: string | null;
+  designation?: string | null;
+  department?: Department | null;
+  photoUrl?: string | null;
+  status?: StaffStatus | null;
+  validTill?: string | null;
+  city?: string | null;
+  state?: string | null;
+  qrCodeUrl?: string | null;
+  verifyTimestamp?: string | null;
+}
+
+export interface StaffProfileForSelfDTO {
+  staffId?: string | null;
+  userId?: string | null;
+  idNumber: string;
+  fullName: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  designation?: string | null;
+  department: Department;
+  photoUrl?: string | null;
+  signatureUrl?: string | null;
+  qrCodeUrl?: string | null;
+  personalEmail?: string | null;
+  workEmail?: string | null;
+  mobilePrivate?: string | null;
+  workMobile?: string | null;
+  bloodGroup?: string | null;
+  dateOfBirth?: string | null;
+  address?: string | null;
+  city?: string | null;
+  district?: string | null;
+  state?: string | null;
+  stateCode?: string | null;
+  rtoCode?: string | null;
+  pinCode?: string | null;
+  issueDate?: string | null;
+  validTill?: string | null;
+  lastRenewedDate?: string | null;
+  nextRenewalDate?: string | null;
+  daysUntilExpiry?: number | null;
+  status: StaffStatus;
+  reporterBatchId?: string | null;
+  aadhaarLast4?: string | null;
+  panLast4?: string | null;
+  emergencyContactName?: string | null;
+  emergencyNumber?: string | null;
+  reissueRequested?: boolean | null;
+  reissueReason?: string | null;
+  notes?: string | null;
+  downloadUrl?: string | null;
+  printUrl?: string | null;
+}
+
+export interface StaffAdminCreateRequestDTO {
+  userId?: string | null;
+  stateCode: string;
+  rtoCode: string;
+  fullName: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  designation?: string | null;
+  department: Department;
+  personalEmail?: string | null;
+  workEmail?: string | null;
+  mobilePrivate?: string | null;
+  workMobile?: string | null;
+  emergencyContactName?: string | null;
+  emergencyNumber?: string | null;
+  bloodGroup?: string | null;
+  dateOfBirth?: string | null;
+  address?: string | null;
+  city?: string | null;
+  district?: string | null;
+  state?: string | null;
+  pinCode?: string | null;
+  issueDate?: string | null;
+  validTill?: string | null;
+  aadhaarLast4?: string | null;
+  panLast4?: string | null;
+  status?: StaffStatus | null;
+  reporterBatchId?: string | null;
+  notes?: string | null;
+}
+
+export type StaffAdminUpdateRequestDTO = Partial<StaffAdminCreateRequestDTO>;

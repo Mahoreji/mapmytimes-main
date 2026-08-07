@@ -31,7 +31,9 @@ class CareersService {
     final parts = <String>[];
     p.forEach((k, v) {
       if (v == null) return;
-      if (v is Iterable) { for (final e in v) parts.add('$k=${Uri.encodeQueryComponent(e.toString())}'); return; }
+      if (v is Iterable) { for (final e in v) {
+        parts.add('$k=${Uri.encodeQueryComponent(e.toString())}');
+      } return; }
       final s = v.toString(); if (s.isEmpty) return;
       parts.add('$k=${Uri.encodeQueryComponent(s)}');
     });
@@ -133,11 +135,11 @@ class CareersService {
           filename: form.resumeFilename,
           contentType: MediaType.parse('application/octet-stream'),
         ),
-      ));
+      ),);
     }
-    final r = await _dio.post('$_appsV1', data: fd);
+    final r = await _dio.post(_appsV1, data: fd);
     final env = _env<JobApplicationResponse>(r,
-      (Object? j) => JobApplicationResponse.fromJson(Map<String, dynamic>.from(j as Map)));
+      (Object? j) => JobApplicationResponse.fromJson(Map<String, dynamic>.from(j as Map)),);
     return _unwrap(env);
   }
 

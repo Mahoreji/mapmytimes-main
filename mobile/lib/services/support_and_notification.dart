@@ -65,7 +65,9 @@ class NotificationService {
     final parts = <String>[];
     p.forEach((k, v) {
       if (v == null) return;
-      if (v is Iterable) { for (final e in v) parts.add('$k=${Uri.encodeQueryComponent(e.toString())}'); return; }
+      if (v is Iterable) { for (final e in v) {
+        parts.add('$k=${Uri.encodeQueryComponent(e.toString())}');
+      } return; }
       final s = v.toString(); if (s.isEmpty) return;
       parts.add('$k=${Uri.encodeQueryComponent(s)}');
     });
@@ -86,8 +88,9 @@ class NotificationService {
     final r = await _dio.get('$_base$q');
     final env = _env<List<NotificationItem>>(r, (Object? j) {
       List l = const [];
-      if (j is List) l = j;
-      else if (j is Map<String, dynamic>) {
+      if (j is List) {
+        l = j;
+      } else if (j is Map<String, dynamic>) {
         l = (j['items'] ?? j['notifications'] ?? j['content'] ?? const []) as List;
       }
       return l

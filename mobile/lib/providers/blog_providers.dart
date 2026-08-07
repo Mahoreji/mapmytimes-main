@@ -130,3 +130,17 @@ final postViewIncrementProvider = Provider.autoDispose<void Function(ID id)>((re
   final svc = ref.watch(blogServiceProvider);
   return (ID id) async => svc.incrementView(id);
 });
+
+// ----------------- Staff -----------------------------------------------------
+typedef StaffList = List<StaffListCardDTO>;
+
+final staffListProvider = FutureProvider.autoDispose<StaffList>((ref) async {
+  final svc = ref.watch(blogServiceProvider);
+  final r = await svc.staffPublicList();
+  return r;
+});
+
+final staffVerifyProvider = FutureProvider.autoDispose.family<StaffListCardDTO?, String>((ref, id) async {
+  final svc = ref.watch(blogServiceProvider);
+  return await svc.staffVerify(id);
+});

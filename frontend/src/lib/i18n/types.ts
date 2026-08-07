@@ -17,6 +17,7 @@ export type NavLabel =
   | "sections"
   | "explore"
   | "about"
+  | "ourTeam"
   | "contact"
   | "careers"
   | "signin"

@@ -5,24 +5,22 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function siteEnv(name: string, fallback = ""): string {
-  if (typeof process === "undefined") return fallback;
-  return (process.env as Record<string, string | undefined>)[name] ?? fallback;
-}
-
 export const SITE = {
-  name: siteEnv("NEXT_PUBLIC_SITE_NAME", "MapMyTimes"),
-  url: siteEnv("NEXT_PUBLIC_SITE_URL", "https://mapmytimes.com"),
+  name: process.env.NEXT_PUBLIC_SITE_NAME ?? "MapMyTimes",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://mapmytimes.com",
   tagline: "JOURNALISM OF INTEGRITY",
-  email: siteEnv("NEXT_PUBLIC_CONTACT_EMAIL", "admin@mapmytimes.com"),
-  phone: siteEnv("NEXT_PUBLIC_CONTACT_PHONE", "+91 80859 27274"),
-  apiBase: siteEnv("NEXT_PUBLIC_API_BASE_URL", "https://api.mapmytimes.com"),
+  email: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "admin@mapmytimes.com",
+  phone: process.env.NEXT_PUBLIC_CONTACT_PHONE ?? "+91 80859 27274",
+  apiBase:
+    process.env.NEXT_PUBLIC_API_BASE_URL && process.env.NEXT_PUBLIC_API_BASE_URL.trim() !== ""
+      ? process.env.NEXT_PUBLIC_API_BASE_URL
+      : "",
   socials: {
-    facebook: siteEnv("NEXT_PUBLIC_SOCIAL_FACEBOOK", "https://facebook.com/mapmytimes"),
-    twitter: siteEnv("NEXT_PUBLIC_SOCIAL_TWITTER", "https://x.com/mapmytimes"),
-    instagram: siteEnv("NEXT_PUBLIC_SOCIAL_INSTAGRAM", "https://instagram.com/mapmytimes"),
-    youtube: siteEnv("NEXT_PUBLIC_SOCIAL_YOUTUBE", "https://youtube.com/@mapmytimes"),
-    linkedin: siteEnv("NEXT_PUBLIC_SOCIAL_LINKEDIN", "https://linkedin.com/company/mapmytimes"),
+    facebook: process.env.NEXT_PUBLIC_SOCIAL_FACEBOOK ?? "https://facebook.com/mapmytimes",
+    twitter: process.env.NEXT_PUBLIC_SOCIAL_TWITTER ?? "https://x.com/mapmytimes",
+    instagram: process.env.NEXT_PUBLIC_SOCIAL_INSTAGRAM ?? "https://instagram.com/mapmytimes",
+    youtube: process.env.NEXT_PUBLIC_SOCIAL_YOUTUBE ?? "https://youtube.com/@mapmytimes",
+    linkedin: process.env.NEXT_PUBLIC_SOCIAL_LINKEDIN ?? "https://linkedin.com/company/mapmytimes",
   },
 };
 

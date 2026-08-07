@@ -270,6 +270,16 @@ class _AppShellState extends State<AppShell> with TickerProviderStateMixin {
                     onTap: () => _goto('/categories'),
                   ),
                   _DrawerItem(
+                    icon: FaIcon(FontAwesomeIcons.users, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+                    label: t.ourTeam,
+                    onTap: () => _goto('/our-team'),
+                  ),
+                  _DrawerItem(
+                    icon: FaIcon(FontAwesomeIcons.shieldHalved, size: 18, color: dark ? Colors.white : MmtColors.ink950),
+                    label: t.verifyPress,
+                    onTap: () => _goto('/verify-press'),
+                  ),
+                  _DrawerItem(
                     icon: FaIcon(FontAwesomeIcons.circleInfo, size: 18, color: dark ? Colors.white : MmtColors.ink950),
                     label: t.about,
                     onTap: () {

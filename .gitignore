@@ -34,6 +34,8 @@ build/
 
 # ============ NODE / JS (if any microservice uses) ============
 node_modules/
+.next/
+out/
 package-lock.json
 !frontend/package-lock.json
 yarn.lock

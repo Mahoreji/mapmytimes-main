@@ -152,7 +152,7 @@ class ReaderApi {
             postId: postId,
             scrollPercent: v,
             updatedAt: DateTime.now(),
-          ));
+          ),);
         }
         results.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
         return results.take(limit).toList(growable: false);

@@ -841,3 +841,176 @@ class JobResponse {
         published: j['published'] as bool?,
       );
 }
+
+// =============================================================================
+// Staff
+// =============================================================================
+enum Department {
+  engineering,
+  design,
+  marketing,
+  sales,
+  hr,
+  finance,
+  operations,
+  legal,
+  it,
+  admin,
+  support,
+  product,
+  content,
+  qa,
+  other,
+}
+
+enum StaffStatus {
+  active,
+  inactive,
+  pending,
+  suspended,
+  terminated,
+}
+
+Department departmentFromString(String? s) {
+  switch ((s ?? '').toLowerCase()) {
+    case 'engineering':
+    case 'tech':
+    case 'technology':
+    case 'rnd':
+    case 'research':
+      return Department.engineering;
+    case 'design':
+    case 'ux':
+    case 'ui':
+      return Department.design;
+    case 'marketing':
+    case 'growth':
+      return Department.marketing;
+    case 'sales':
+    case 'bd':
+    case 'business':
+      return Department.sales;
+    case 'hr':
+    case 'human':
+    case 'people':
+    case 'talent':
+      return Department.hr;
+    case 'finance':
+    case 'accounts':
+    case 'accounting':
+      return Department.finance;
+    case 'operations':
+    case 'ops':
+      return Department.operations;
+    case 'legal':
+    case 'compliance':
+      return Department.legal;
+    case 'it':
+    case 'infra':
+    case 'infrastructure':
+      return Department.it;
+    case 'admin':
+    case 'administration':
+    case 'office':
+      return Department.admin;
+    case 'support':
+    case 'cs':
+    case 'customersupport':
+    case 'customerservice':
+      return Department.support;
+    case 'product':
+    case 'pm':
+      return Department.product;
+    case 'content':
+    case 'editorial':
+    case 'copy':
+      return Department.content;
+    case 'qa':
+    case 'quality':
+    case 'testing':
+    case 'test':
+      return Department.qa;
+    default:
+      return Department.other;
+  }
+}
+
+StaffStatus staffStatusFromString(String? s) {
+  switch ((s ?? '').toLowerCase()) {
+    case 'active':
+    case 'enabled':
+    case 'verified':
+      return StaffStatus.active;
+    case 'inactive':
+    case 'disabled':
+      return StaffStatus.inactive;
+    case 'pending':
+    case 'invited':
+    case 'onboarding':
+      return StaffStatus.pending;
+    case 'suspended':
+    case 'banned':
+    case 'blocked':
+      return StaffStatus.suspended;
+    case 'terminated':
+    case 'resigned':
+    case 'left':
+    case 'archived':
+      return StaffStatus.terminated;
+    default:
+      return StaffStatus.pending;
+  }
+}
+
+class StaffListCardDTO {
+  final String id;
+  final String idNumber;
+  final String fullName;
+  final String? designation;
+  final String? department;
+  final String? city;
+  final String? state;
+  final String status;
+  final String? validTill;
+  final String? photoUrl;
+  final String? qrCodeUrl;
+
+  const StaffListCardDTO({
+    required this.id,
+    required this.idNumber,
+    required this.fullName,
+    this.designation,
+    this.department,
+    this.city,
+    this.state,
+    required this.status,
+    this.validTill,
+    this.photoUrl,
+    this.qrCodeUrl,
+  });
+
+  String? get photo => photoUrl == null ? null : Env.resolveImgUrl(photoUrl!);
+  StaffStatus get statusEnum => staffStatusFromString(status);
+  Department? get departmentEnum => department == null ? null : departmentFromString(department);
+
+  factory StaffListCardDTO.fromJson(Map<String, dynamic> j) {
+    String? str(Object? v) {
+      if (v == null) return null;
+      if (v is String) return v.isEmpty ? null : v;
+      return v.toString();
+    }
+    return StaffListCardDTO(
+      id: str(j['id']) ?? '',
+      idNumber: str(j['idNumber']) ?? str(j['employeeId']) ?? str(j['staffId']) ?? str(j['empId']) ?? '',
+      fullName: str(j['fullName']) ?? str(j['name']) ?? ((str(j['firstName']) ?? '') + ' ' + (str(j['lastName']) ?? '')).trim(),
+      designation: str(j['designation']) ?? str(j['jobTitle']) ?? str(j['title']) ?? str(j['role']),
+      department: str(j['department']) ?? str(j['departmentName']),
+      city: str(j['city']) ?? str(j['locationCity']),
+      state: str(j['state']) ?? str(j['locationState']) ?? str(j['region']),
+      status: str(j['status']) ?? 'PENDING',
+      validTill: str(j['validTill']) ?? str(j['validUntil']) ?? str(j['expiresAt']) ?? str(j['expiryDate']),
+      photoUrl: str(j['photoUrl']) ?? str(j['photo']) ?? str(j['avatarUrl']) ?? str(j['profileImageUrl']) ?? str(j['imageUrl']),
+      qrCodeUrl: str(j['qrCodeUrl']) ?? str(j['qrCode']) ?? str(j['qrUrl']) ?? str(j['badgeQrUrl']),
+    );
+  }
+}

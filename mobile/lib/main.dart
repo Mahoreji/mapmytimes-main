@@ -13,8 +13,10 @@ import 'package:mapmytimes/providers/index.dart';
 import 'package:mapmytimes/screens/app_shell.dart';
 import 'package:mapmytimes/screens/home_screen.dart';
 import 'package:mapmytimes/screens/news_article_screen.dart';
+import 'package:mapmytimes/screens/our_team_screen.dart';
 import 'package:mapmytimes/screens/shorts_feed.dart';
 import 'package:mapmytimes/screens/static_screens.dart';
+import 'package:mapmytimes/screens/verify_press_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/offline_storage_service.dart';
 
@@ -143,6 +145,22 @@ final routerProvider = Provider<GoRouter>((ref) {
             pageBuilder: (context, state) => NoTransitionPage<void>(
               key: state.pageKey,
               child: const ProfileScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/our-team',
+            name: 'our-team',
+            pageBuilder: (context, state) => NoTransitionPage<void>(
+              key: state.pageKey,
+              child: const OurTeamScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/verify-press',
+            name: 'verify-press',
+            pageBuilder: (context, state) => NoTransitionPage<void>(
+              key: state.pageKey,
+              child: const VerifyPressScreen(),
             ),
           ),
         ],
